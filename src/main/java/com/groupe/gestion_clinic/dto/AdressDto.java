@@ -4,7 +4,7 @@ package com.groupe.gestion_clinic.dto;
 import com.groupe.gestion_clinic.model.Adresse;
 import lombok.*;
 
-@Getter @Setter
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

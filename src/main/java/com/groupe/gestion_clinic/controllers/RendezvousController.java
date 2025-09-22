@@ -1,11 +1,10 @@
 package com.groupe.gestion_clinic.controllers;
 
-import com.groupe.gestion_clinic.dto.MedecinDto;
 import com.groupe.gestion_clinic.dto.RendezvousDto;
 import com.groupe.gestion_clinic.dto.RendezvousSearchDto;
-import com.groupe.gestion_clinic.dto.requestDto.RendezvousRequestDto;
-import com.groupe.gestion_clinic.services.RendezvousService;
-import lombok.RequiredArgsConstructor;
+import com.groupe.gestion_clinic.model.StatutRendezVous;
+import com.groupe.gestion_clinic.services.RendezvousServiceNew;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,19 +14,37 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/rendezvous")
-@RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:4203")
 public class RendezvousController {
 
-    private final RendezvousService rendezvousService;
+    private final RendezvousServiceNew rendezvousService;
+    
+    public RendezvousController(@Qualifier("rendezvousServiceNew") RendezvousServiceNew rendezvousService) {
+        this.rendezvousService = rendezvousService;
+    }
 
     @PostMapping("/create")
-    public ResponseEntity<RendezvousDto> createRendezVous(@RequestBody RendezvousRequestDto requestDto) {
-        return ResponseEntity.ok(rendezvousService.createRendezVous(requestDto));
+    public ResponseEntity<RendezvousDto> createRendezVous(@RequestBody Object requestDto) {
+        try {
+            RendezvousDto result = rendezvousService.createRendezVous(requestDto);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("Erreur lors de la création du rendez-vous: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @PutMapping("/update/{id}")
-    public ResponseEntity<RendezvousDto> updateRendezVous(@PathVariable Integer id, @RequestBody RendezvousRequestDto requestDto) {
+    public ResponseEntity<RendezvousDto> updateRendezVous(@PathVariable Integer id, @RequestBody Object requestDto) {
         return ResponseEntity.ok(rendezvousService.updateRendezVous(id, requestDto));
+    }
+
+    @PutMapping("/update-status/{id}")
+    public ResponseEntity<RendezvousDto> updateRendezVousStatus(@PathVariable Integer id, @RequestParam String statut) {
+        StatutRendezVous statutEnum = StatutRendezVous.valueOf(statut);
+        RendezvousDto result = rendezvousService.updateRendezVousStatus(id, statutEnum);
+        return ResponseEntity.ok(result);
     }
 
 
@@ -47,7 +64,7 @@ public class RendezvousController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<?> getAllRendezVous() {
+    public ResponseEntity<List<RendezvousDto>> getAllRendezVous() {
         return ResponseEntity.ok(rendezvousService.getAllRendezVous());
     }
 

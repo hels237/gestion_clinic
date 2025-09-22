@@ -1,9 +1,9 @@
-#database
+#database PostgreSQL
 POSTGRES_SQL_HOST: localhost
 POSTGRES_SQL_PORT: 5432
-POSTGRES_SQL_DB: gestion_clinic
-POSTGRES_SQL_USERNAME: hels
-POSTGRES_SQL_PASSWORD: hels
+POSTGRES_SQL_DB: gestion_clinic_db
+POSTGRES_SQL_USERNAME: postgres
+POSTGRES_SQL_PASSWORD: darwin
 
 #SERVER
 ACTIVE_PROFILE: dev

@@ -2,13 +2,12 @@ package com.groupe.gestion_clinic.model;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Embeddable
-@Getter @Setter
+@Data
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -13,6 +13,7 @@ import java.util.List;
 @Tag(name = "Patient Management", description = "Operations related to Patient management")
 @RestController
 @RequestMapping("/api/patients")
+@CrossOrigin(origins = "http://localhost:4203")
 @RequiredArgsConstructor
 public class PatientController {
 

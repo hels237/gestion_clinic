@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,7 +18,7 @@ public interface RendezvousRepository extends JpaRepository<Rendezvous, Integer>
     @Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END " +
             "FROM Rendezvous r " +
             "WHERE r.medecin.id = :medecinId " +
-            "AND r.statut <> com.groupe.gestion_clinic.model.StatutRendezVous.ANNULER " +
+            "AND r.statut <> com.groupe.gestion_clinic.model.StatutRendezVous.ANNULE " +
             "AND ((r.dateHeureDebut < :end AND r.dateHeureFin > :start))")
     boolean existsConflictingMedecinRendezVous(
                                                 @Param("medecinId") Integer medecinId,
@@ -31,7 +32,7 @@ public interface RendezvousRepository extends JpaRepository<Rendezvous, Integer>
     @Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END " +
             "FROM Rendezvous r " +
             "WHERE r.patient.id = :patientId " +
-            "AND r.statut <> com.groupe.gestion_clinic.model.StatutRendezVous.ANNULER " +
+            "AND r.statut <> com.groupe.gestion_clinic.model.StatutRendezVous.ANNULE " +
             "AND r.dateHeureDebut BETWEEN :startOfDay AND :endOfDay")
     boolean existsByPatientAndDate(
                                     @Param("patientId") Integer patientId,
@@ -56,9 +57,19 @@ public interface RendezvousRepository extends JpaRepository<Rendezvous, Integer>
 * */
     @Query("SELECT r FROM Rendezvous r " +
             "WHERE r.dateHeureDebut BETWEEN :now AND :futureDate " +
-            "AND r.statut = com.groupe.gestion_clinic.model.StatutRendezVous.PLANIFIER")
+            "AND r.statut = com.groupe.gestion_clinic.model.StatutRendezVous.PLANIFIE")
     List<Rendezvous> findUpcomingRendezVous(
                                             @Param("now") LocalDateTime now,
                                             @Param("futureDate") LocalDateTime futureDate);
+
+    // Nouvelles méthodes pour le dashboard
+    @Query("SELECT COUNT(r) FROM Rendezvous r WHERE DATE(r.dateHeureDebut) = :date")
+    long countByDateRendezVous(@Param("date") LocalDate date);
+
+    @Query("SELECT COUNT(r) FROM Rendezvous r WHERE r.statut = :statut")
+    long countByStatut(@Param("statut") String statut);
+
+    @Query("SELECT r FROM Rendezvous r ORDER BY r.dateHeureDebut DESC LIMIT 10")
+    List<Rendezvous> findRecentRendezVous();
     
 }

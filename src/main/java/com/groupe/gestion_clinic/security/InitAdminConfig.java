@@ -20,16 +20,26 @@ public class InitAdminConfig {
     @Bean
     public CommandLineRunner initAdmin() {
         return args -> {
-            if (utilisateurRepository.count() == 0) {
-                Administrateur admin = new Administrateur();
-                admin.setNom("Super");
-                admin.setPrenom("Admin");
-                admin.setEmail("admin@example.com");
-                admin.setMotDePasse(passwordEncoder.encode("admin123")); // password hashé
-                admin.setRole(Role.ADMIN);
-
-                utilisateurRepository.save(admin);
-                System.out.println("✅ Admin créé avec succès: email=admin@example.com, password=admin123");
+            System.out.println("Verification des utilisateurs existants: " + utilisateurRepository.count());
+            
+            // Afficher tous les utilisateurs existants
+            utilisateurRepository.findAll().forEach(user -> 
+                System.out.println("Utilisateur existant: " + user.getEmail() + " - Role: " + user.getRole())
+            );
+            
+            // Créer admin@test.com TOUJOURS
+            Administrateur testAdmin = new Administrateur();
+            testAdmin.setNom("Test");
+            testAdmin.setPrenom("Admin");
+            testAdmin.setEmail("admin@test.com");
+            testAdmin.setMotDePasse(passwordEncoder.encode("test123"));
+            testAdmin.setRole(Role.ADMIN);
+            
+            try {
+                utilisateurRepository.save(testAdmin);
+                System.out.println("=== ADMIN TEST CREE: email=admin@test.com, password=test123 ===");
+            } catch (Exception e) {
+                System.out.println("Erreur creation admin: " + e.getMessage());
             }
         };
     }

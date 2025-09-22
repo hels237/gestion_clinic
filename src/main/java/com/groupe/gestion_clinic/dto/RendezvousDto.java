@@ -9,8 +9,8 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+@Data
 @Builder
-@Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class RendezvousDto {

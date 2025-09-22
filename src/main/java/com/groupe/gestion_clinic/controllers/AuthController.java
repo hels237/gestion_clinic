@@ -1,70 +1,68 @@
 package com.groupe.gestion_clinic.controllers;
 
-
-import com.groupe.gestion_clinic.dto.AuthResponse;
-import com.groupe.gestion_clinic.dto.requestDto.LoginRequestDto;
-import com.groupe.gestion_clinic.model.Utilisateur;
-import com.groupe.gestion_clinic.repositories.UtilisateurRepository;
 import com.groupe.gestion_clinic.security.JwtServiceUtil;
+import com.groupe.gestion_clinic.services.AuditService;
+import com.groupe.gestion_clinic.repositories.UtilisateurRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "http://localhost:4203")
 @RequiredArgsConstructor
 public class AuthController {
 
-
-    private final AuthenticationManager authenticationManager;
-    private final JwtServiceUtil jwtServiceUtil;
+    private final AuditService auditService;
     private final UtilisateurRepository utilisateurRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtServiceUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto request){
+    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest, HttpServletRequest request) {
         try {
-            // Tente d'authentifier l'utilisateur avec l'email et le mot de passe
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
-            // Si l'authentification réussit, met à jour le contexte de sécurité
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            // Récupère l'objet Utilisateur complet pour générer le token avec les claims nécessaires
-            Utilisateur user = utilisateurRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé après authentification."));
-
-            // Génère le token JWT
-            String token = jwtServiceUtil.generateToken(user);
-
-            // Retourne le token au client
-            return ResponseEntity.ok(new AuthResponse(token));
-        } catch (AuthenticationException e) {
-            // Gère les échecs d'authentification (ex: mauvais identifiants)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Identifiants invalides: " + e.getMessage());
+            String email = loginRequest.get("email");
+            String password = loginRequest.get("password");
+            
+            var userOpt = utilisateurRepository.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Utilisateur non trouvé");
+            }
+            
+            var user = userOpt.get();
+            if (!passwordEncoder.matches(password, user.getMotDePasse())) {
+                return ResponseEntity.badRequest().body("Mot de passe incorrect");
+            }
+            
+            String token = jwtUtil.generateToken(user);
+            auditService.logLogin(user.getEmail(), user.getRole().toString(), request.getRemoteAddr());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("role", user.getRole().toString());
+            response.put("nom", user.getNom());
+            response.put("prenom", user.getPrenom());
+            response.put("email", user.getEmail());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Erreur de connexion: " + e.getMessage());
         }
     }
 
-
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
-        // Pour un système basé sur JWT et stateless, "logout" côté serveur
-        //  on peut juste effacer le contexte de sécurité actuel ,
-        SecurityContextHolder.clearContext();
-        return ResponseEntity.ok("Déconnexion réussie");
-    }
-
-
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        return ResponseEntity.ok(auth.getPrincipal());
+    public ResponseEntity<?> logout(Authentication auth, HttpServletRequest request) {
+        if (auth != null) {
+            auditService.logLogout(auth.getName(), "USER", request.getRemoteAddr());
+        }
+        return ResponseEntity.ok().build();
     }
 }

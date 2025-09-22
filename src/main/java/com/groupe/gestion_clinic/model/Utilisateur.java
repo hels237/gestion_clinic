@@ -3,6 +3,7 @@ package com.groupe.gestion_clinic.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,6 +16,7 @@ import java.util.Collection;
 import java.util.List;
 
 
+@Data
 @Getter
 @Setter
 @Entity
@@ -38,9 +40,9 @@ public abstract class  Utilisateur  extends AbstractEntity implements UserDetail
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    private String avatarUrl;
+
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Retourne une liste de GrantedAuthority basée sur le rôle de l'utilisateur.
-        // Spring Security attend des rôles préfixés par "ROLE_".
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 

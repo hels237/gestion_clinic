@@ -5,9 +5,8 @@ import com.groupe.gestion_clinic.model.Role;
 import lombok.*;
 
 
+@Data
 @Builder
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class MedecinDto {
