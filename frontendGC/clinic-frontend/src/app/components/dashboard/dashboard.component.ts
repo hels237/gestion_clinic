@@ -7,13 +7,14 @@ import { NotificationService } from '../../services/notification.service';
 import { SearchService, SearchResult } from '../../services/search.service';
 import { NotificationsComponent } from '../notifications/notifications.component';
 import { NotificationToastComponent } from '../shared/notification-toast.component';
+import { ChatIntegrationComponent } from '../shared/chat-integration.component';
 import { FormsModule } from '@angular/forms';
 import { User } from '../../models/auth.model';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, NotificationsComponent, NotificationToastComponent, FormsModule],
+  imports: [CommonModule, RouterModule, NotificationsComponent, NotificationToastComponent, ChatIntegrationComponent, FormsModule],
   template: `
     <div class="dashboard-container">
       <app-notifications></app-notifications>
@@ -70,6 +71,9 @@ import { User } from '../../models/auth.model';
               <li [class.disabled]="!canAccessUsers()">
                 <a *ngIf="canAccessUsers()" routerLink="/users" routerLinkActive="active">👥 Utilisateurs</a>
                 <span *ngIf="!canAccessUsers()" class="disabled-link">👥 Utilisateurs</span>
+              </li>
+              <li *ngIf="currentUser?.role === 'ADMIN'">
+                <a routerLink="/admin/factures" routerLinkActive="active">💰 Factures</a>
               </li>
             </ul>
           </div>
@@ -153,6 +157,32 @@ import { User } from '../../models/auth.model';
               </div>
             </div>
           </div>
+          
+          <div *ngIf="currentUser?.role === 'ADMIN'" class="section revenue-section">
+            <h3>💰 Revenus de l'Hôpital</h3>
+            <div class="revenue-controls">
+              <label>Année:</label>
+              <select [(ngModel)]="selectedYear" (change)="onYearChange()" class="year-select">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+              </select>
+              <label>Mois:</label>
+              <select [(ngModel)]="selectedMonth" (change)="onMonthChange()" class="month-select">
+                <option *ngFor="let month of months" [value]="month.value">{{ month.name }}</option>
+              </select>
+            </div>
+            <div class="revenue-cards">
+              <div class="revenue-display annual">
+                <div class="revenue-amount">{{ revenuAnnuel | number:'1.0-0' }} FCFA</div>
+                <div class="revenue-label">Revenus {{ selectedYear }}</div>
+                <button (click)="showFacturesDetails()" class="btn-details">📋 Détails</button>
+              </div>
+              <div class="revenue-display monthly">
+                <div class="revenue-amount">{{ revenuMensuel | number:'1.0-0' }} FCFA</div>
+                <div class="revenue-label">{{ getMonthName(selectedMonth) }} {{ selectedYear }}</div>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
       <footer class="global-footer">
@@ -160,6 +190,44 @@ import { User } from '../../models/auth.model';
           © kfokam48 2025 - Gestion Clinique
         </div>
       </footer>
+      
+      <!-- Chat Integration -->
+      <app-chat-integration></app-chat-integration>
+      
+      <!-- Modal Factures -->
+      <div *ngIf="showFacturesModal" class="factures-modal">
+        <div class="factures-content">
+          <div class="factures-header">
+            <h3>📋 Factures {{ selectedYear }}</h3>
+            <button (click)="closeFacturesModal()" class="btn-close">✖</button>
+          </div>
+          
+          <div class="factures-by-month">
+            <div *ngFor="let monthGroup of getFacturesByMonth()" class="month-group">
+              <div class="month-header">
+                <h4>{{ getMonthName(monthGroup.month) }} {{ selectedYear }}</h4>
+                <span class="month-total">{{ monthGroup.total | number:'1.0-0' }} FCFA ({{ monthGroup.factures.length }} factures)</span>
+              </div>
+              <div class="month-factures">
+                <div *ngFor="let facture of monthGroup.factures" class="facture-item" (click)="showFactureDetail(facture)">
+                  <div><strong>{{ facture.numeroFacture }}</strong></div>
+                  <div>{{ facture.dateCreation | date:'dd/MM/yyyy' }} - {{ facture.montantTotal | number:'1.0-0' }} FCFA</div>
+                  <div>Statut: {{ facture.statut }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div *ngIf="selectedFacture" class="facture-detail">
+            <h4>📎 Détails Facture {{ selectedFacture.numeroFacture }}</h4>
+            <div><strong>Date:</strong> {{ selectedFacture.dateCreation | date:'dd/MM/yyyy HH:mm' }}</div>
+            <div><strong>Montant:</strong> {{ selectedFacture.montantTotal | number:'1.0-0' }} FCFA</div>
+            <div><strong>Statut:</strong> {{ selectedFacture.statut }}</div>
+            <div><strong>Échéance:</strong> {{ selectedFacture.dateEcheance | date:'dd/MM/yyyy' }}</div>
+            <button (click)="selectedFacture = null" class="btn-close" style="margin-top: 1rem;">Fermer</button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -519,6 +587,119 @@ import { User } from '../../models/auth.model';
     .action-icon {
       font-size: 1.5rem;
     }
+    .revenue-section {
+      margin-top: 2rem;
+    }
+    .revenue-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .year-select, .month-select {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .revenue-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .revenue-display {
+      color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .revenue-display.annual {
+      background: linear-gradient(135deg, #28a745, #20c997);
+    }
+    .revenue-display.monthly {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+    }
+    .revenue-amount {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .revenue-label {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+    .btn-details {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .factures-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .factures-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .factures-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .month-filter {
+      margin-bottom: 1rem;
+    }
+    .factures-by-month { display: flex; flex-direction: column; gap: 1.5rem; }
+    .month-group { border: 1px solid #e0e6ed; border-radius: 8px; overflow: hidden; }
+    .month-header { background: #f8f9fa; padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e6ed; }
+    .month-header h4 { margin: 0; color: #333; }
+    .month-total { font-weight: bold; color: #007bff; }
+    .month-factures { padding: 0; }
+    .factures-list {
+      display: grid;
+      gap: 1rem;
+    }
+    .facture-item {
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .facture-item:hover {
+      background: #f8f9fa;
+    }
+    .facture-detail {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    .btn-close {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -528,6 +709,28 @@ export class DashboardComponent implements OnInit {
   searchQuery = '';
   searchResults: SearchResult[] = [];
   notificationCount = 3;
+  selectedYear = 2025;
+  selectedMonth = new Date().getMonth() + 1;
+  revenuAnnuel = 0;
+  revenuMensuel = 0;
+  months = [
+    { value: 1, name: 'Janvier' },
+    { value: 2, name: 'Février' },
+    { value: 3, name: 'Mars' },
+    { value: 4, name: 'Avril' },
+    { value: 5, name: 'Mai' },
+    { value: 6, name: 'Juin' },
+    { value: 7, name: 'Juillet' },
+    { value: 8, name: 'Août' },
+    { value: 9, name: 'Septembre' },
+    { value: 10, name: 'Octobre' },
+    { value: 11, name: 'Novembre' },
+    { value: 12, name: 'Décembre' }
+  ];
+  showFacturesModal = false;
+  factures: any[] = [];
+  filteredFactures: any[] = [];
+  selectedFacture: any = null;
 
   constructor(
     private authService: AuthService,
@@ -542,6 +745,10 @@ export class DashboardComponent implements OnInit {
       this.currentUser = user;
       if (user) {
         this.notificationService.connectWebSocket();
+        if (user.role === 'ADMIN') {
+          this.loadRevenue();
+          this.loadRevenuMensuel();
+        }
       }
     });
     this.loadDashboardData();
@@ -550,10 +757,12 @@ export class DashboardComponent implements OnInit {
   loadDashboardData(): void {
     this.dashboardService.getStats().subscribe({
       next: stats => {
+        console.log('Statistiques reçues:', stats);
         this.stats = stats;
         this.notificationService.success('Dashboard', 'Données chargées avec succès');
       },
-      error: () => {
+      error: (error) => {
+        console.error('Erreur chargement stats:', error);
         this.stats = {
           totalPatients: 0,
           totalMedecins: 0,
@@ -672,6 +881,92 @@ export class DashboardComponent implements OnInit {
 
   canAccessMedecins(): boolean {
     return this.currentUser?.role === 'ADMIN';
+  }
+
+  loadRevenue(): void {
+    this.dashboardService.getRevenuAnnuel(this.selectedYear).subscribe({
+      next: (data) => {
+        this.revenuAnnuel = data.revenuAnnuel || 0;
+      },
+      error: () => {
+        this.revenuAnnuel = 0;
+      }
+    });
+  }
+
+  loadRevenuMensuel(): void {
+    this.dashboardService.getRevenuMensuel(this.selectedYear, this.selectedMonth).subscribe({
+      next: (data) => {
+        this.revenuMensuel = data.revenuMensuel || 0;
+      },
+      error: () => {
+        this.revenuMensuel = 0;
+      }
+    });
+  }
+
+  onYearChange(): void {
+    this.loadRevenue();
+    this.loadRevenuMensuel();
+  }
+
+  onMonthChange(): void {
+    this.loadRevenuMensuel();
+  }
+
+  getMonthName(monthValue: number): string {
+    const month = this.months.find(m => m.value === Number(monthValue));
+    return month ? month.name : 'Mois inconnu';
+  }
+
+  showFacturesDetails(): void {
+    this.loadAllFactures();
+    this.showFacturesModal = true;
+  }
+
+  loadAllFactures(): void {
+    this.dashboardService.getAllFactures().subscribe({
+      next: (factures) => {
+        this.factures = factures.filter(f => new Date(f.dateCreation).getFullYear() === this.selectedYear);
+        this.filteredFactures = this.factures;
+      },
+      error: () => {
+        this.factures = [];
+        this.filteredFactures = [];
+      }
+    });
+  }
+
+  getFacturesByMonth(): any[] {
+    const monthGroups = new Map();
+    
+    this.factures.forEach(facture => {
+      const date = new Date(facture.dateCreation);
+      const month = date.getMonth() + 1;
+      
+      if (!monthGroups.has(month)) {
+        monthGroups.set(month, {
+          month: month,
+          factures: [],
+          total: 0
+        });
+      }
+      
+      const group = monthGroups.get(month);
+      group.factures.push(facture);
+      group.total += facture.montantTotal || 0;
+    });
+    
+    return Array.from(monthGroups.values()).sort((a, b) => a.month - b.month);
+  }
+
+  showFactureDetail(facture: any): void {
+    this.selectedFacture = facture;
+  }
+
+  closeFacturesModal(): void {
+    this.showFacturesModal = false;
+    this.selectedFacture = null;
   }
 
   canAccessUsers(): boolean {

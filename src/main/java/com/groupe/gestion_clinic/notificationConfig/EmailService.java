@@ -46,4 +46,40 @@ public class EmailService {
         message.setText(content);
         mailSender.send(message);
     }
+
+    public void sendPrescriptionEmail(String to, String patientName, String medicaments) {
+        MimeMessagePreparator messagePreparator = mimeMessage -> {
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage);
+            helper.setTo(to);
+            helper.setSubject("Nouvelle prescription - " + patientName);
+            helper.setText(buildPrescriptionHtml(patientName, medicaments), true);
+        };
+        mailSender.send(messagePreparator);
+    }
+
+    public void sendFactureEmail(String to, String numeroFacture, Double montant) {
+        MimeMessagePreparator messagePreparator = mimeMessage -> {
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage);
+            helper.setTo(to);
+            helper.setSubject("Facture créée - " + numeroFacture);
+            helper.setText(buildFactureHtml(numeroFacture, montant), true);
+        };
+        mailSender.send(messagePreparator);
+    }
+
+    private String buildPrescriptionHtml(String patientName, String medicaments) {
+        return "<html><body>" +
+                "<h2>Nouvelle Prescription</h2>" +
+                "<p>Une nouvelle prescription a été créée pour le patient <strong>" + patientName + "</strong></p>" +
+                "<p>Médicaments prescrits: " + medicaments + "</p>" +
+                "</body></html>";
+    }
+
+    private String buildFactureHtml(String numeroFacture, Double montant) {
+        return "<html><body>" +
+                "<h2>Facture Créée</h2>" +
+                "<p>Facture N° <strong>" + numeroFacture + "</strong></p>" +
+                "<p>Montant: <strong>" + montant + " FCFA</strong></p>" +
+                "</body></html>";
+    }
 }

@@ -14,6 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dashboard")
+@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class DashboardController {
 
@@ -27,9 +28,15 @@ public class DashboardController {
         
         try {
             // Statistiques de base
-            stats.put("totalPatients", patientRepository.count());
-            stats.put("totalMedecins", medecinRepository.count());
-            stats.put("totalRendezVous", rendezVousRepository.count());
+            long totalPatients = patientRepository.count();
+            long totalMedecins = medecinRepository.count();
+            long totalRendezVous = rendezVousRepository.count();
+            
+            System.out.println("Stats calculées: Patients=" + totalPatients + ", Medecins=" + totalMedecins + ", RDV=" + totalRendezVous);
+            
+            stats.put("totalPatients", totalPatients);
+            stats.put("totalMedecins", totalMedecins);
+            stats.put("totalRendezVous", totalRendezVous);
             
             // Rendez-vous d'aujourd'hui
             java.time.LocalDate today = java.time.LocalDate.now();
@@ -47,12 +54,58 @@ public class DashboardController {
             stats.put("rendezVousEnAttente", rdvEnAttente);
             
         } catch (Exception e) {
+            System.err.println("Erreur lors du calcul des stats: " + e.getMessage());
+            e.printStackTrace();
             // Valeurs par défaut en cas d'erreur
             stats.put("totalPatients", 0L);
             stats.put("totalMedecins", 0L);
             stats.put("totalRendezVous", 0L);
             stats.put("rendezVousAujourdhui", 0L);
             stats.put("rendezVousEnAttente", 0L);
+        }
+        
+        System.out.println("Stats finales envoyées: " + stats);
+        
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/medecin/{medecinId}/stats")
+    public ResponseEntity<Map<String, Object>> getMedecinStats(@PathVariable Integer medecinId) {
+        Map<String, Object> stats = new HashMap<>();
+        
+        try {
+            // Patients uniques du médecin
+            long mesPatients = rendezVousRepository.findAll().stream()
+                .filter(rdv -> rdv.getMedecin() != null && rdv.getMedecin().getId().equals(medecinId))
+                .map(rdv -> rdv.getPatient())
+                .filter(patient -> patient != null)
+                .map(patient -> patient.getId())
+                .distinct()
+                .count();
+            
+            // RDV aujourd'hui pour ce médecin
+            LocalDate today = LocalDate.now();
+            long rdvAujourdhui = rendezVousRepository.findAll().stream()
+                .filter(rdv -> rdv.getMedecin() != null && rdv.getMedecin().getId().equals(medecinId))
+                .filter(rdv -> rdv.getDateHeureDebut() != null && 
+                              rdv.getDateHeureDebut().toLocalDate().equals(today))
+                .count();
+            
+            // RDV en attente pour ce médecin
+            long rdvEnAttente = rendezVousRepository.findAll().stream()
+                .filter(rdv -> rdv.getMedecin() != null && rdv.getMedecin().getId().equals(medecinId))
+                .filter(rdv -> rdv.getStatut() != null && 
+                              rdv.getStatut().name().equals("PLANIFIE"))
+                .count();
+            
+            stats.put("mesPatients", mesPatients);
+            stats.put("rdvAujourdhui", rdvAujourdhui);
+            stats.put("rdvEnAttente", rdvEnAttente);
+            
+        } catch (Exception e) {
+            stats.put("mesPatients", 0L);
+            stats.put("rdvAujourdhui", 0L);
+            stats.put("rdvEnAttente", 0L);
         }
         
         return ResponseEntity.ok(stats);

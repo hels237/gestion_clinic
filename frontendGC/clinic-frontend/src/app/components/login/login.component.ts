@@ -22,6 +22,7 @@ import { LoginRequest } from '../../models/auth.model';
               [(ngModel)]="credentials.email" 
               name="email" 
               required 
+              autocomplete="email"
               class="form-control">
           </div>
           <div class="form-group">
@@ -33,6 +34,7 @@ import { LoginRequest } from '../../models/auth.model';
                 [(ngModel)]="credentials.password" 
                 name="password" 
                 required 
+                autocomplete="current-password"
                 class="form-control">
               <button 
                 type="button" 

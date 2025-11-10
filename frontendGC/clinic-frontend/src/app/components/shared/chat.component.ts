@@ -18,13 +18,18 @@ import { User } from '../../models/auth.model';
       </div>
       
       <div class="chat-messages" #messagesContainer>
-        <div *ngFor="let message of messages" 
-             class="message" 
-             [class.own-message]="message.senderId === currentUser?.id"
-             [class.other-message]="message.senderId !== currentUser?.id">
-          <div class="message-content">{{ message.content }}</div>
-          <div class="message-time">{{ message.timestamp | date:'HH:mm' }}</div>
-        </div>
+        <ng-container *ngFor="let group of getMessagesByDay(); let i = index">
+          <div class="date-separator">
+            <span class="date-label">{{ group.date | date:'dd/MM/yyyy' }}</span>
+          </div>
+          <div *ngFor="let message of group.messages" 
+               class="message" 
+               [class.own-message]="message.senderId === currentUser?.id"
+               [class.other-message]="message.senderId !== currentUser?.id">
+            <div class="message-content">{{ message.content }}</div>
+            <div class="message-time">{{ message.timestamp | date:'HH:mm' }}</div>
+          </div>
+        </ng-container>
         <div *ngIf="messages.length === 0" class="no-messages">
           Aucun message. Commencez la conversation !
         </div>
@@ -115,6 +120,30 @@ import { User } from '../../models/auth.model';
       font-size: 0.7rem;
       opacity: 0.7;
     }
+    .date-separator {
+      text-align: center;
+      margin: 1rem 0;
+      position: relative;
+    }
+    .date-separator::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #e0e0e0;
+    }
+    .date-label {
+      background: white;
+      padding: 0.25rem 0.75rem;
+      color: #666;
+      font-size: 0.8rem;
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+      position: relative;
+      z-index: 1;
+    }
     .no-messages {
       text-align: center;
       color: #666;
@@ -168,6 +197,7 @@ export class ChatComponent implements OnInit {
     });
 
     this.chatService.messages$.subscribe(messages => {
+      console.log('Messages mis à jour dans le chat:', messages.length);
       this.messages = messages;
       setTimeout(() => this.scrollToBottom(), 100);
     });
@@ -175,6 +205,7 @@ export class ChatComponent implements OnInit {
 
   ngOnChanges(): void {
     if (this.isVisible && this.otherUser) {
+      console.log('Chat ouvert avec:', this.otherUser);
       this.loadConversation();
       this.markAsRead();
     }
@@ -182,19 +213,50 @@ export class ChatComponent implements OnInit {
 
   loadConversation(): void {
     if (this.otherUser?.id) {
+      console.log('Chargement conversation avec ID:', this.otherUser.id);
       this.chatService.loadConversation(this.otherUser.id);
     }
   }
 
   sendMessage(): void {
-    if (!this.newMessage.trim() || !this.otherUser?.id) return;
+    console.log('Tentative d\'envoi de message:', this.newMessage, 'vers:', this.otherUser);
+    
+    if (!this.newMessage.trim()) {
+      console.warn('Message vide, envoi annulé');
+      return;
+    }
+    
+    if (!this.otherUser?.id || !this.currentUser?.id) {
+      console.warn('Destinataire ou expéditeur manquant');
+      return;
+    }
 
-    this.chatService.sendMessage({
+    const messageContent = this.newMessage.trim();
+    
+    // Ajouter le message localement pour affichage immédiat
+    const localMessage: ChatMessage = {
+      senderId: this.currentUser.id,
+      senderName: `${this.currentUser.prenom} ${this.currentUser.nom}`,
       receiverId: this.otherUser.id,
-      content: this.newMessage.trim()
+      receiverName: `${this.otherUser.prenom} ${this.otherUser.nom}`,
+      content: messageContent,
+      timestamp: new Date().toISOString(),
+      isRead: false
+    };
+    
+    // Ajouter immédiatement le message à la conversation pour l'affichage
+    this.messages = [...this.messages, localMessage];
+    setTimeout(() => this.scrollToBottom(), 100);
+
+    console.log('Envoi du message via ChatService...');
+    this.chatService.sendMessage({
+      senderId: this.currentUser.id,
+      receiverId: this.otherUser.id,
+      content: messageContent
     });
 
     this.newMessage = '';
+    console.log('Message envoyé, champ vidé');
   }
 
   markAsRead(): void {
@@ -204,8 +266,26 @@ export class ChatComponent implements OnInit {
   }
 
   close(): void {
+    this.markAsRead();
     this.isVisible = false;
     this.closed.emit();
+  }
+
+  getMessagesByDay(): any[] {
+    const groups = new Map<string, any>();
+    
+    this.messages.forEach(message => {
+      const date = new Date(message.timestamp).toDateString();
+      if (!groups.has(date)) {
+        groups.set(date, {
+          date: new Date(message.timestamp),
+          messages: []
+        });
+      }
+      groups.get(date)!.messages.push(message);
+    });
+    
+    return Array.from(groups.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 
   private scrollToBottom(): void {

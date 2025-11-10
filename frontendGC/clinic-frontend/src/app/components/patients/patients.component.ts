@@ -9,11 +9,12 @@ import { Patient } from '../../models/patient.model';
 import { User } from '../../models/auth.model';
 import { SidebarComponent } from '../shared/sidebar.component';
 import { ExportService } from '../../services/export.service';
+import { PatientHistoryModalComponent } from '../medecin/patient-history-modal.component';
 
 @Component({
   selector: 'app-patients',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SidebarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, SidebarComponent, PatientHistoryModalComponent],
   template: `
     <div class="layout-container">
       <nav class="navbar">
@@ -34,15 +35,15 @@ import { ExportService } from '../../services/export.service';
               <h2>Gestion des Patients</h2>
               <div class="header-actions">
                 <button (click)="showAddForm = !showAddForm" class="btn-primary">
-                  <span class="btn-icon">{{ showAddForm ? '❌' : '➕' }}</span>
+                  <span class="btn-icon">{{ showAddForm ? '✖️' : '✚' }}</span>
                   {{ showAddForm ? 'Annuler' : 'Ajouter Patient' }}
                 </button>
                 <button (click)="exportPatients()" class="btn-success">
-                  <span class="btn-icon">📄</span>
+                  <span class="btn-icon">📃</span>
                   Exporter
                 </button>
-                <button (click)="loadPatients()" class="btn-secondary">
-                  <span class="btn-icon">🔄</span>
+                <button (click)="loadPatients()" class="btn-refresh">
+                  <span class="btn-icon">↻</span>
                   Actualiser
                 </button>
               </div>
@@ -135,6 +136,7 @@ import { ExportService } from '../../services/export.service';
               <td>{{ patient.telephone }}</td>
               <td>{{ patient.dateNaissance | date:'dd/MM/yyyy' }}</td>
               <td>
+                <button (click)="viewHistory(patient)" class="btn-history">Historique</button>
                 <button (click)="editPatient(patient)" class="btn-edit">Modifier</button>
                 <button (click)="deletePatient(patient.id!)" class="btn-delete">Supprimer</button>
               </td>
@@ -145,6 +147,13 @@ import { ExportService } from '../../services/export.service';
     </div>
         </main>
       </div>
+      
+      <app-patient-history-modal 
+        [isVisible]="showHistoryModal" 
+        [patient]="selectedPatient"
+        (closed)="showHistoryModal = false">
+      </app-patient-history-modal>
+      
       <footer class="global-footer">
         <div class="footer-content">
           © kfokam48 2025 - Gestion Clinique
@@ -193,14 +202,88 @@ import { ExportService } from '../../services/export.service';
     .btn-primary, .btn-secondary, .btn-edit, .btn-delete { padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; }
     .btn-primary { background-color: #007bff; color: white; font-weight: 600; transition: all 0.3s ease; }
     .btn-primary:hover { background-color: #0056b3; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
-    .btn-success { background-color: #28a745; color: white; font-weight: 600; transition: all 0.3s ease; }
-    .btn-success:hover { background-color: #1e7e34; transform: translateY(-2px); }
-    .btn-secondary { background-color: #6c757d; color: white; }
-    .btn-edit { background-color: #28a745; color: white; margin-right: 0.5rem; }
-    .btn-delete { background-color: #dc3545; color: white; }
+    .btn-success { 
+      background: linear-gradient(135deg, #28a745, #20c997); 
+      color: white; 
+      font-weight: 600; 
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 8px rgba(40, 167, 69, 0.2);
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .btn-success:hover { 
+      background: linear-gradient(135deg, #20c997, #1e7e34); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    }
+    /* Style géré par styles.css global */
+    .btn-history { 
+      background: linear-gradient(135deg, #17a2b8, #138496); 
+      color: white; 
+      margin-right: 0.5rem; 
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn-history:hover { 
+      background: linear-gradient(135deg, #138496, #117a8b); 
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+    }
+    .btn-edit { 
+      background: linear-gradient(135deg, #28a745, #20c997); 
+      color: white; 
+      margin-right: 0.5rem; 
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    .btn-edit:hover { 
+      background: linear-gradient(135deg, #20c997, #1e7e34); 
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    .btn-delete { 
+      background: linear-gradient(135deg, #dc3545, #c82333); 
+      color: white; 
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+    .btn-delete:hover { 
+      background: linear-gradient(135deg, #c82333, #a71e2a); 
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
     .patients-table { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
+    td:last-child { 
+      display: flex; 
+      gap: 0.5rem; 
+      align-items: center; 
+      justify-content: flex-start;
+    }
     th { background-color: #f8f9fa; font-weight: bold; }
   `]
 })
@@ -210,6 +293,8 @@ export class PatientsComponent implements OnInit {
   showAddForm = false;
   editingPatient = false;
   currentUser: User | null = null;
+  showHistoryModal = false;
+  selectedPatient: Patient | null = null;
 
   constructor(
     private patientService: PatientService,
@@ -237,7 +322,7 @@ export class PatientsComponent implements OnInit {
     this.patientService.getAllPatients().subscribe({
       next: patients => {
         this.patients = patients;
-        this.notificationService.success('Patients', `${patients.length} patients chargés`);
+        // Patients chargés silencieusement
       },
       error: () => {
         this.notificationService.error('Erreur', 'Impossible de charger les patients');
@@ -275,7 +360,7 @@ export class PatientsComponent implements OnInit {
           console.log('Patient modifié avec succès:', response);
           this.loadPatients();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Patient modifié avec succès');
+          // Patient modifié silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la modification:', error);
@@ -289,7 +374,7 @@ export class PatientsComponent implements OnInit {
           console.log('Patient créé avec succès:', response);
           this.loadPatients();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Patient créé avec succès');
+          // Patient créé silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la création:', error);
@@ -319,7 +404,7 @@ export class PatientsComponent implements OnInit {
       this.patientService.deletePatient(id).subscribe({
         next: () => {
           this.loadPatients();
-          this.notificationService.success('Succès', 'Patient supprimé avec succès');
+          // Patient supprimé silencieusement
         },
         error: () => {
           this.notificationService.error('Erreur', 'Impossible de supprimer le patient');
@@ -354,6 +439,11 @@ export class PatientsComponent implements OnInit {
       case 'SECRETAIRE': return 'Secrétaire';
       default: return role;
     }
+  }
+
+  viewHistory(patient: Patient): void {
+    this.selectedPatient = patient;
+    this.showHistoryModal = true;
   }
 
   exportPatients(): void {

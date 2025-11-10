@@ -2,6 +2,7 @@ package com.groupe.gestion_clinic.controllers;
 
 import com.groupe.gestion_clinic.dto.PrescriptionDto;
 import com.groupe.gestion_clinic.dto.requestDto.PrescriptionRequestDto;
+import com.groupe.gestion_clinic.dto.requestDto.MultiplePrescriptionRequestDto;
 import com.groupe.gestion_clinic.services.PrescriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/prescription")
+@CrossOrigin(origins = {"http://localhost:4200", "http://localhost:4203"})
 @RequiredArgsConstructor
 public class PrescriptionController {
 
@@ -54,6 +56,33 @@ public class PrescriptionController {
     public ResponseEntity<List<PrescriptionDto>> getPrescriptionsByRendezvousId(@PathVariable Integer rendezvousId) {
         List<PrescriptionDto> prescriptions = prescriptionService.getPrescriptionsByRendezvousId(rendezvousId);
         return ResponseEntity.ok(prescriptions);
+    }
+
+    @GetMapping("/medecin/{medecinId}")
+    public ResponseEntity<List<PrescriptionDto>> getPrescriptionsByMedecinId(@PathVariable Integer medecinId) {
+        List<PrescriptionDto> prescriptions = prescriptionService.getPrescriptionsByMedecinId(medecinId);
+        return ResponseEntity.ok(prescriptions);
+    }
+
+    @GetMapping("/medecin/{medecinId}/paginated")
+    public ResponseEntity<org.springframework.data.domain.Page<PrescriptionDto>> getPrescriptionsByMedecinIdPaginated(
+            @PathVariable Integer medecinId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(((com.groupe.gestion_clinic.services.serviceImpl.PrescriptionServiceImpl) prescriptionService).getPrescriptionsByMedecinIdPaginated(medecinId, page, size));
+    }
+
+    @GetMapping("/all/paginated")
+    public ResponseEntity<org.springframework.data.domain.Page<PrescriptionDto>> getAllPrescriptionsPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(((com.groupe.gestion_clinic.services.serviceImpl.PrescriptionServiceImpl) prescriptionService).getAllPrescriptionsPaginated(page, size));
+    }
+
+    @PostMapping("/create-multiple")
+    public ResponseEntity<List<PrescriptionDto>> createMultiplePrescriptions(@RequestBody MultiplePrescriptionRequestDto requestDto) {
+        List<PrescriptionDto> createdPrescriptions = prescriptionService.createMultiplePrescriptions(requestDto);
+        return new ResponseEntity<>(createdPrescriptions, HttpStatus.CREATED);
     }
 
     //  générer et télécharger une ordonnance (prescription) en format PDF.

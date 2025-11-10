@@ -153,7 +153,10 @@ import { Medecin } from '../../models/medecin.model';
               </td>
               <td>
                 <button (click)="editRendezVous(rdv)" class="btn-edit">Modifier</button>
-                <button (click)="cancelRendezVous(rdv.id!)" class="btn-cancel" *ngIf="rdv.statut !== 'ANNULER'">Annuler</button>
+                <button (click)="cancelRendezVous(rdv.id!)" class="btn-cancel" 
+                        *ngIf="rdv.statut !== 'ANNULER'" 
+                        [disabled]="!canCancelRendezVous(rdv)"
+                        [title]="!canCancelRendezVous(rdv) ? 'Annulation impossible (moins de 24h)' : ''">Annuler</button>
                 <button (click)="deleteRendezVous(rdv.id!)" class="btn-delete">Supprimer</button>
               </td>
             </tr>
@@ -201,6 +204,7 @@ import { Medecin } from '../../models/medecin.model';
     .btn-secondary { background-color: #6c757d; color: white; }
     .btn-edit { background-color: #28a745; color: white; }
     .btn-cancel { background-color: #ffc107; color: black; }
+    .btn-cancel:disabled { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; opacity: 0.6; }
     .btn-delete { background-color: #dc3545; color: white; }
     .filters-section { background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     .filters-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) auto; gap: 1rem; align-items: end; }
@@ -317,7 +321,8 @@ export class RendezVousComponent implements OnInit {
         },
         error: (error) => {
           console.error('Update error:', error);
-          this.notificationService.error('Erreur', 'Impossible de modifier le rendez-vous');
+          const errorMsg = this.getErrorMessage(error);
+          this.notificationService.error('Erreur', errorMsg);
         }
       });
     } else {
@@ -331,7 +336,8 @@ export class RendezVousComponent implements OnInit {
         },
         error: (error) => {
           console.error('Create error:', error);
-          this.notificationService.error('Erreur', 'Impossible de créer le rendez-vous');
+          const errorMsg = this.getErrorMessage(error);
+          this.notificationService.error('Erreur', errorMsg);
         }
       });
     }
@@ -357,8 +363,9 @@ export class RendezVousComponent implements OnInit {
           this.loadRendezVous();
           this.notificationService.success('Succès', 'Rendez-vous annulé avec succès');
         },
-        error: () => {
-          this.notificationService.error('Erreur', 'Impossible d\'annuler le rendez-vous');
+        error: (error) => {
+          const errorMsg = this.getErrorMessage(error);
+          this.notificationService.error('Erreur', errorMsg);
         }
       });
     }
@@ -399,5 +406,23 @@ export class RendezVousComponent implements OnInit {
     this.dateFilter = '';
     this.medecinFilter = '';
     this.filterRendezVous();
+  }
+
+  private getErrorMessage(error: any): string {
+    if (error.error && error.error.message) {
+      return error.error.message;
+    }
+    if (error.message) {
+      return error.message;
+    }
+    return 'Une erreur inattendue s\'est produite';
+  }
+
+  canCancelRendezVous(rdv: RendezVous): boolean {
+    if (rdv.statut === 'ANNULER') return false;
+    const rdvDate = new Date(rdv.dateHeureDebut);
+    const now = new Date();
+    const diffHours = (rdvDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return diffHours >= 24;
   }
 }

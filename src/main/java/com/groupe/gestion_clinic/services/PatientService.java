@@ -1,6 +1,7 @@
 package com.groupe.gestion_clinic.services;
 
 import com.groupe.gestion_clinic.dto.PatientDto;
+import com.groupe.gestion_clinic.dto.PatientHistoryDto;
 import com.groupe.gestion_clinic.dto.PrescriptionDto;
 
 import java.util.List;
@@ -14,5 +15,7 @@ public interface PatientService {
     PatientDto deletePatient(Integer id);
 
     List<PrescriptionDto> getPatientPrescriptionsHistory(Integer patientId);
+    PatientHistoryDto getPatientHistory(Integer patientId);
+    byte[] generatePatientHistoryPdf(Integer patientId);
 
 }

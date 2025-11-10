@@ -56,6 +56,8 @@ import { ChatService } from '../../services/chat.service';
               <li><a routerLink="/secretaire" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">📊 Tableau de bord</a></li>
               <li><a routerLink="/secretaire/patients" routerLinkActive="active">👥 Patients</a></li>
               <li><a routerLink="/secretaire/rendezvous" routerLinkActive="active">📅 Rendez-vous</a></li>
+              <li><a routerLink="/secretaire/prescriptions" routerLinkActive="active">💊 Prescriptions</a></li>
+              <li><a routerLink="/secretaire/factures" routerLinkActive="active">💰 Factures</a></li>
             </ul>
           </div>
           <div class="sidebar-footer">

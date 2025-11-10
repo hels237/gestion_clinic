@@ -14,7 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/rendezvous")
-@CrossOrigin(origins = "http://localhost:4203")
+@CrossOrigin(origins = {"http://localhost:4200", "http://localhost:4203"})
 public class RendezvousController {
 
     private final RendezvousServiceNew rendezvousService;
@@ -66,6 +66,13 @@ public class RendezvousController {
     @GetMapping("/all")
     public ResponseEntity<List<RendezvousDto>> getAllRendezVous() {
         return ResponseEntity.ok(rendezvousService.getAllRendezVous());
+    }
+
+    @GetMapping("/all/paginated")
+    public ResponseEntity<org.springframework.data.domain.Page<RendezvousDto>> getAllRendezVousPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(rendezvousService.getAllRendezVousPaginated(page, size));
     }
 
     @GetMapping("/all/upcoming")

@@ -56,6 +56,7 @@ import { ChatContactsComponent } from '../shared/chat-contacts.component';
               <li><a routerLink="/medecin" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">📊 Tableau de bord</a></li>
               <li><a routerLink="/medecin/patients" routerLinkActive="active">👥 Mes Patients</a></li>
               <li><a routerLink="/medecin/rendezvous" routerLinkActive="active">📅 Mes Rendez-vous</a></li>
+              <li><a routerLink="/medecin/prescriptions" routerLinkActive="active">💊 Prescriptions</a></li>
             </ul>
           </div>
           <div class="sidebar-footer">
@@ -124,10 +125,44 @@ import { ChatContactsComponent } from '../shared/chat-contacts.component';
                 <span class="action-text">Rechercher Patient</span>
               </button>
               
+              <button (click)="navigateToPrescriptions()" class="action-btn prescriptions">
+                <span class="action-icon">💊</span>
+                <span class="action-text">Mes Prescriptions</span>
+              </button>
+              
               <button (click)="viewSchedule()" class="action-btn schedule">
                 <span class="action-icon">📋</span>
                 <span class="action-text">Mon Planning</span>
               </button>
+            </div>
+          </div>
+
+          <!-- Revenus Annuels et Mensuels (Admin uniquement) -->
+          <div *ngIf="currentUser?.role === 'ADMIN'" class="revenue-section">
+            <div class="section-header">
+              <h3>💰 Revenus de l'Hôpital</h3>
+              <div class="selectors">
+                <select [(ngModel)]="selectedYear" (change)="onYearChange()" class="year-select">
+                  <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+                </select>
+                <select [(ngModel)]="selectedMonth" (change)="onMonthChange()" class="month-select">
+                  <option *ngFor="let month of months" [value]="month.value">{{ month.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="revenue-cards">
+              <div class="revenue-card annual">
+                <div class="revenue-amount">
+                  <span class="amount">{{ revenuAnnuel | currency:'EUR':'symbol':'1.2-2' }}</span>
+                  <span class="year-label">Revenus {{ selectedYear }}</span>
+                </div>
+              </div>
+              <div class="revenue-card monthly">
+                <div class="revenue-amount">
+                  <span class="amount">{{ revenuMensuel | currency:'EUR':'symbol':'1.2-2' }}</span>
+                  <span class="year-label">{{ getMonthName(selectedMonth) }} {{ selectedYear }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -226,6 +261,7 @@ import { ChatContactsComponent } from '../shared/chat-contacts.component';
     .action-btn.add-consultation:hover { background: linear-gradient(135deg, #007bff, #0056b3); color: white; }
     .action-btn.search:hover { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
     .action-btn.schedule:hover { background: linear-gradient(135deg, #17a2b8, #138496); color: white; }
+    .action-btn.prescriptions:hover { background: linear-gradient(135deg, #28a745, #1e7e34); color: white; }
     .action-icon { font-size: 2rem; }
     .action-text { font-weight: bold; }
     .recent-section { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -244,6 +280,16 @@ import { ChatContactsComponent } from '../shared/chat-contacts.component';
     .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 0.5rem; border-radius: 50%; cursor: pointer; font-size: 1.2rem; position: relative; transition: all 0.3s ease; }
     .nav-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); }
     .badge { position: absolute; top: -5px; right: -5px; background: #dc3545; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; }
+    .revenue-section { margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .selectors { display: flex; gap: 1rem; }
+    .year-select, .month-select { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .revenue-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .revenue-card { color: white; padding: 2rem; border-radius: 12px; text-align: center; }
+    .revenue-card.annual { background: linear-gradient(135deg, #28a745, #20c997); }
+    .revenue-card.monthly { background: linear-gradient(135deg, #007bff, #0056b3); }
+    .amount { font-size: 2.5rem; font-weight: bold; display: block; }
+    .year-label { font-size: 1.1rem; opacity: 0.9; }
   `]
 })
 export class MedecinDashboardComponent implements OnInit {
@@ -258,6 +304,25 @@ export class MedecinDashboardComponent implements OnInit {
   selectedChatUser: any = null;
   totalUnreadMessages = 0;
   showProfileModal = false;
+  revenuAnnuel = 0;
+  revenuMensuel = 0;
+  selectedYear = new Date().getFullYear();
+  selectedMonth = new Date().getMonth() + 1;
+  years = [2023, 2024, 2025, 2026];
+  months = [
+    { value: 1, name: 'Janvier' },
+    { value: 2, name: 'Février' },
+    { value: 3, name: 'Mars' },
+    { value: 4, name: 'Avril' },
+    { value: 5, name: 'Mai' },
+    { value: 6, name: 'Juin' },
+    { value: 7, name: 'Juillet' },
+    { value: 8, name: 'Août' },
+    { value: 9, name: 'Septembre' },
+    { value: 10, name: 'Octobre' },
+    { value: 11, name: 'Novembre' },
+    { value: 12, name: 'Décembre' }
+  ];
 
   constructor(
     private authService: AuthService,
@@ -273,21 +338,66 @@ export class MedecinDashboardComponent implements OnInit {
       if (user) {
         this.notificationService.connectWebSocket();
         this.subscribeToNotifications();
+        this.loadData(); // Charger après avoir l'utilisateur
+        if (user.role === 'ADMIN') {
+          this.loadRevenuAnnuel();
+          this.loadRevenuMensuel();
+        }
       }
     });
-    this.loadData();
   }
 
   loadData(): void {
-    this.dashboardService.getStats().subscribe({
-      next: stats => this.stats = stats,
-      error: () => this.stats = { mesPatients: 0, rdvAujourdhui: 0, rdvEnAttente: 0 }
-    });
+    if (this.currentUser?.id) {
+      this.dashboardService.getMedecinStats(this.currentUser.id).subscribe({
+        next: stats => {
+          console.log('Stats médecin reçues:', stats);
+          this.stats = stats;
+        },
+        error: () => this.stats = { mesPatients: 0, rdvAujourdhui: 0, rdvEnAttente: 0 }
+      });
+    }
 
     this.dashboardService.getRecentRendezVous().subscribe({
       next: rdv => this.todayAppointments = rdv,
       error: () => this.todayAppointments = []
     });
+  }
+
+  loadRevenuAnnuel(): void {
+    this.dashboardService.getRevenuAnnuel(this.selectedYear).subscribe({
+      next: (data) => {
+        this.revenuAnnuel = data.revenuAnnuel;
+      },
+      error: (error) => {
+        console.error('Erreur chargement revenus:', error);
+      }
+    });
+  }
+
+  loadRevenuMensuel(): void {
+    this.dashboardService.getRevenuMensuel(this.selectedYear, this.selectedMonth).subscribe({
+      next: (data) => {
+        this.revenuMensuel = data.revenuMensuel;
+      },
+      error: (error) => {
+        console.error('Erreur chargement revenus mensuels:', error);
+      }
+    });
+  }
+
+  onYearChange(): void {
+    this.loadRevenuAnnuel();
+    this.loadRevenuMensuel();
+  }
+
+  onMonthChange(): void {
+    this.loadRevenuMensuel();
+  }
+
+  getMonthName(monthValue: number): string {
+    const month = this.months.find(m => m.value === monthValue);
+    return month ? month.name : 'Mois inconnu';
   }
 
   navigateToPatients(): void {
@@ -308,6 +418,10 @@ export class MedecinDashboardComponent implements OnInit {
 
   viewSchedule(): void {
     this.router.navigate(['/medecin/rendezvous']);
+  }
+
+  navigateToPrescriptions(): void {
+    this.router.navigate(['/medecin/prescriptions']);
   }
 
   onSearch(): void {

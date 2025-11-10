@@ -36,14 +36,14 @@ import { NotificationService } from '../../services/notification.service';
         <main class="content">
           <div class="users-container">
             <div class="header">
-              <h2>👥 Gestion des Utilisateurs</h2>
+              <h2>👤 Gestion des Utilisateurs</h2>
               <div class="header-actions">
                 <button (click)="showAddForm = !showAddForm" class="btn-primary">
-                  <span class="btn-icon">{{ showAddForm ? '❌' : '➕' }}</span>
+                  <span class="btn-icon">{{ showAddForm ? '✖️' : '✚' }}</span>
                   {{ showAddForm ? 'Annuler' : 'Ajouter Utilisateur' }}
                 </button>
-                <button (click)="loadUsers()" class="btn-secondary">
-                  <span class="btn-icon">🔄</span>
+                <button (click)="loadUsers()" class="btn-refresh">
+                  <span class="btn-icon">↻</span>
                   Actualiser
                 </button>
               </div>
@@ -82,8 +82,8 @@ import { NotificationService } from '../../services/notification.service';
             <input type="password" [(ngModel)]="currentUser.motDePasse" name="motDePasse" required class="form-control">
           </div>
           <div class="form-actions">
-            <button type="submit" [disabled]="!userForm.valid" class="btn-primary">💾 Sauvegarder</button>
-            <button type="button" (click)="cancelEdit()" class="btn-secondary">❌ Annuler</button>
+            <button type="submit" [disabled]="!userForm.valid" class="btn-primary">💿 Sauvegarder</button>
+            <button type="button" (click)="cancelEdit()" class="btn-secondary">✖️ Annuler</button>
           </div>
         </form>
       </div>
@@ -93,9 +93,9 @@ import { NotificationService } from '../../services/notification.service';
           <thead>
             <tr>
               <th>👤 Nom</th>
-              <th>📧 Email</th>
+              <th>✉️ Email</th>
               <th>🎭 Rôle</th>
-              <th>⚙️ Actions</th>
+              <th>🔧 Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -106,8 +106,8 @@ import { NotificationService } from '../../services/notification.service';
                 <span [class]="'role-badge role-' + user.role.toLowerCase()">{{ getRoleLabel(user.role) }}</span>
               </td>
               <td class="actions">
-                <button (click)="editUser(user)" class="btn-edit" title="Modifier">✏️</button>
-                <button (click)="deleteUser(user.id!)" class="btn-delete" title="Supprimer">🗑️</button>
+                <button (click)="editUser(user)" class="btn-edit" title="Modifier">Modifier</button>
+                <button (click)="deleteUser(user.id!)" class="btn-delete" title="Supprimer">Supprimer</button>
               </td>
             </tr>
           </tbody>
@@ -148,16 +148,68 @@ import { NotificationService } from '../../services/notification.service';
     .form-group label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
     .form-control { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
     .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
-    .btn-primary, .btn-secondary, .btn-edit, .btn-delete { padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
-    .btn-primary { background-color: #007bff; color: white; }
-    .btn-secondary { background-color: #6c757d; color: white; }
-    .btn-edit { background-color: #28a745; color: white; margin-right: 0.5rem; }
-    .btn-delete { background-color: #dc3545; color: white; }
+    .btn-primary, .btn-secondary, .btn-edit, .btn-delete { 
+      padding: 0.75rem 1.5rem; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: 600; 
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .btn-primary { 
+      background: linear-gradient(135deg, #007bff, #0056b3); 
+      color: white; 
+    }
+    .btn-primary:hover { 
+      background: linear-gradient(135deg, #0056b3, #004085); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+    }
+    /* Style géré par styles.css global */
+    .btn-edit { 
+      background: linear-gradient(135deg, #28a745, #20c997); 
+      color: white; 
+      margin-right: 0.5rem; 
+      padding: 0.6rem 1rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-edit:hover { 
+      background: linear-gradient(135deg, #20c997, #1e7e34); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    }
+    .btn-delete { 
+      background: linear-gradient(135deg, #dc3545, #c82333); 
+      color: white; 
+      padding: 0.6rem 1rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-delete:hover { 
+      background: linear-gradient(135deg, #c82333, #a71e2a); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+    }
     .users-table { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
     th { background-color: #f8f9fa; font-weight: bold; }
-    .actions { white-space: nowrap; }
+    .actions { 
+      white-space: nowrap; 
+      display: flex; 
+      gap: 0.5rem; 
+      justify-content: center;
+      align-items: center;
+    }
     .role-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
     .role-admin { background: #e3f2fd; color: #1976d2; }
     .role-medecin { background: #e8f5e8; color: #2e7d32; }
@@ -185,7 +237,7 @@ export class UsersComponent implements OnInit {
       next: users => {
         console.log('Utilisateurs chargés avec succès:', users);
         this.users = users;
-        this.notificationService.success('Utilisateurs', `${users.length} utilisateurs chargés`);
+        // Utilisateurs chargés silencieusement
       },
       error: (error) => {
         console.error('Erreur lors du chargement des utilisateurs:', error);
@@ -224,7 +276,7 @@ export class UsersComponent implements OnInit {
           console.log('Utilisateur modifié avec succès:', response);
           this.loadUsers();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Utilisateur modifié avec succès');
+          // Utilisateur modifié silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la modification:', error);
@@ -239,7 +291,7 @@ export class UsersComponent implements OnInit {
           console.log('Utilisateur créé avec succès:', response);
           this.loadUsers();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Utilisateur créé avec succès');
+          // Utilisateur créé silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la création:', error);
@@ -261,7 +313,7 @@ export class UsersComponent implements OnInit {
       this.userService.deleteUser(id).subscribe({
         next: () => {
           this.loadUsers();
-          this.notificationService.success('Succès', 'Utilisateur supprimé avec succès');
+          // Utilisateur supprimé silencieusement
         },
         error: () => {
           this.notificationService.error('Erreur', 'Impossible de supprimer l\'utilisateur');

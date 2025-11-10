@@ -39,8 +39,8 @@ import { User } from '../../models/auth.model';
             <div class="contact-name">{{ contact.prenom }} {{ contact.nom }}</div>
             <div class="contact-role">{{ getRoleDisplay(contact.role) }}</div>
           </div>
-          <div class="unread-badge" *ngIf="getUnreadCount(contact.id) > 0">
-            {{ getUnreadCount(contact.id) }}
+          <div class="unread-badge" *ngIf="contact.id && getUnreadCount(contact.id) > 0">
+            {{ getUnreadCount(contact.id!) }}
           </div>
         </div>
         <div *ngIf="filteredContacts.length === 0" class="no-contacts">
@@ -205,28 +205,43 @@ export class ChatContactsComponent implements OnInit {
     if (!this.currentUser) return;
 
     // Load different contacts based on user role
-    if (this.currentUser.role === 'MEDECIN') {
-      // Medecins can chat with secretaires and other medecins
-      this.userService.getSecretaires().subscribe(secretaires => {
-        this.userService.getMedecins().subscribe(medecins => {
-          this.contacts = [...secretaires, ...medecins.filter(m => m.id !== this.currentUser?.id)];
+    if (this.currentUser.role === 'ADMIN') {
+      // Admin can chat with everyone
+      this.userService.getAllUsers().subscribe({
+        next: users => {
+          this.contacts = users.filter(u => u.id !== this.currentUser?.id);
           this.filteredContacts = this.contacts;
-        });
+        },
+        error: () => {
+          console.error('Erreur chargement contacts admin');
+        }
       });
-    } else if (this.currentUser.role === 'SECRETAIRE') {
-      // Secretaires can chat with medecins and other secretaires
-      this.userService.getMedecins().subscribe(medecins => {
-        this.userService.getSecretaires().subscribe(secretaires => {
-          this.contacts = [...medecins, ...secretaires.filter(s => s.id !== this.currentUser?.id)];
+    } else {
+      // Tous les autres rôles (MEDECIN, SECRETAIRE) peuvent chatter avec tout le monde
+      console.log('Chargement contacts pour rôle:', this.currentUser.role);
+      this.userService.getAllUsers().subscribe({
+        next: users => {
+          console.log('Tous les utilisateurs récupérés:', users);
+          this.contacts = users.filter(u => u.id !== this.currentUser?.id);
+          console.log('Contacts filtrés:', this.contacts);
           this.filteredContacts = this.contacts;
-        });
+        },
+        error: (error) => {
+          console.error('Erreur chargement contacts:', error);
+        }
       });
     }
   }
 
   loadUnreadCounts(): void {
-    this.chatService.getUnreadCounts().subscribe(counts => {
-      this.unreadCounts = counts;
+    this.chatService.getUnreadCounts().subscribe({
+      next: counts => {
+        console.log('Compteurs contacts chargés:', counts);
+        this.unreadCounts = counts;
+      },
+      error: error => {
+        console.error('Erreur chargement compteurs contacts:', error);
+      }
     });
   }
 
@@ -246,8 +261,8 @@ export class ChatContactsComponent implements OnInit {
     this.close();
   }
 
-  getUnreadCount(userId: number): number {
-    return this.unreadCounts.get(userId) || 0;
+  getUnreadCount(userId: number | undefined): number {
+    return userId ? this.unreadCounts.get(userId) || 0 : 0;
   }
 
   getRoleDisplay(role: string): string {

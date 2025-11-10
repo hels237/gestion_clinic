@@ -17,7 +17,7 @@ export interface Notification {
   providedIn: 'root'
 })
 export class WebSocketService {
-  private client: Client;
+  public client: Client;
   private connected = false;
   private notificationsSubject = new BehaviorSubject<Notification[]>([]);
   public notifications$ = this.notificationsSubject.asObservable();
@@ -32,8 +32,11 @@ export class WebSocketService {
       return new SockJS('http://localhost:8080/ws');
     };
 
+    // Simplified connection without auth headers
+    this.client.connectHeaders = {};
+
     this.client.onConnect = () => {
-      console.log('WebSocket connecté');
+      console.log('WebSocket connecté avec succès');
       this.connected = true;
       this.subscribeToNotifications();
     };
@@ -44,16 +47,20 @@ export class WebSocketService {
     };
 
     this.client.onStompError = (frame) => {
-      console.error('Erreur WebSocket:', frame);
+      console.error('Erreur STOMP WebSocket:', frame);
+      this.connected = false;
     };
   }
 
   connect(): void {
     if (!this.connected && !this.client.active) {
       console.log('Tentative de connexion WebSocket...');
-      this.client.activate();
-    } else {
-      console.log('WebSocket déjà connecté ou en cours de connexion');
+      try {
+        this.client.activate();
+      } catch (error) {
+        console.error('Erreur lors de la connexion WebSocket:', error);
+        // Ne pas retry automatiquement pour éviter les boucles
+      }
     }
   }
 
@@ -106,11 +113,24 @@ export class WebSocketService {
     return this.notifications$;
   }
 
+  // Méthode pour simuler une notification sans WebSocket
+  simulateNotification(notification: Notification): void {
+    this.addNotification(notification);
+  }
+
   clearNotifications(): void {
     this.notificationsSubject.next([]);
   }
 
   markAsRead(notificationId: string): void {
     // Logique pour marquer comme lu si nécessaire
+  }
+
+  isConnected(): boolean {
+    return this.connected && this.client?.connected === true;
+  }
+
+  getConnectionStatus(): string {
+    return `Connected: ${this.connected}, Client Active: ${this.client?.active}, Client Connected: ${this.client?.connected}`;
   }
 }

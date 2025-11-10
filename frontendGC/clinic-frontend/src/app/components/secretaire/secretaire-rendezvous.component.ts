@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { ProfileModalComponent } from '../shared/profile-modal.component';
+import { ConflictModalComponent } from '../shared/conflict-modal.component';
+import { CancelModalComponent } from '../shared/cancel-modal.component';
 import { RendezVousService } from '../../services/rendezvous.service';
 import { PatientService } from '../../services/patient.service';
 import { MedecinService } from '../../services/medecin.service';
@@ -13,7 +15,7 @@ import { User } from '../../models/auth.model';
 @Component({
   selector: 'app-secretaire-rendezvous',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ProfileModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ProfileModalComponent, ConflictModalComponent, CancelModalComponent],
   template: `
     <div class="dashboard-container">
       <nav class="navbar">
@@ -68,7 +70,7 @@ import { User } from '../../models/auth.model';
               <button (click)="showAddForm = !showAddForm" class="btn-primary">
                 {{ showAddForm ? '❌ Annuler' : '➕ Nouveau RDV' }}
               </button>
-              <button (click)="loadRendezVous()" class="btn-secondary">🔄 Actualiser</button>
+              <button (click)="loadRendezVous()" class="btn-refresh">↻ Actualiser</button>
             </div>
           </div>
 
@@ -98,20 +100,43 @@ import { User } from '../../models/auth.model';
               <div class="form-row">
                 <div class="form-group">
                   <label>Date *:</label>
-                  <input type="date" [(ngModel)]="currentRdv.date" name="date" required class="form-control">
+                  <input type="date" [(ngModel)]="currentRdv.date" name="date" required 
+                         [min]="getTodayDate()" [max]="getMaxRdvDate()" 
+                         class="form-control" #dateRdvField="ngModel">
+                  <div *ngIf="dateRdvField.invalid && dateRdvField.touched" class="error-message">
+                    <span *ngIf="dateRdvField.errors?.['required']">Date obligatoire</span>
+                    <span *ngIf="dateRdvField.errors?.['min']">Date passée non autorisée</span>
+                    <span *ngIf="dateRdvField.errors?.['max']">Maximum 6 mois à l'avance</span>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label>Heure *:</label>
-                  <input type="time" [(ngModel)]="currentRdv.heure" name="heure" required class="form-control">
+                  <input type="time" [(ngModel)]="currentRdv.heure" name="heure" required 
+                         min="08:00" max="18:00" 
+                         class="form-control" #heureField="ngModel">
+                  <div *ngIf="heureField.invalid && heureField.touched" class="error-message">
+                    <span *ngIf="heureField.errors?.['required']">Heure obligatoire</span>
+                    <span *ngIf="heureField.errors?.['min'] || heureField.errors?.['max']">Horaires: 8h-18h</span>
+                  </div>
                 </div>
               </div>
               <div class="form-group">
                 <label>Motif:</label>
-                <textarea [(ngModel)]="currentRdv.motif" name="motif" class="form-control" rows="3"></textarea>
+                <textarea [(ngModel)]="currentRdv.motif" name="motif" 
+                          maxlength="500" rows="3" 
+                          class="form-control" #motifField="ngModel"></textarea>
+                <div *ngIf="motifField.invalid && motifField.touched" class="error-message">
+                  <span *ngIf="motifField.errors?.['maxlength']">Maximum 500 caractères</span>
+                </div>
               </div>
               <div class="form-group">
                 <label>Salle:</label>
-                <input [(ngModel)]="currentRdv.salle" name="salle" class="form-control" placeholder="Ex: Salle 101">
+                <input [(ngModel)]="currentRdv.salle" name="salle" 
+                       maxlength="20" pattern="[a-zA-Z0-9\s-]+" 
+                       class="form-control" placeholder="Ex: Salle 101" #salleField="ngModel">
+                <div *ngIf="salleField.invalid && salleField.touched" class="error-message">
+                  <span *ngIf="salleField.errors?.['pattern']">Caractères alphanumériques uniquement</span>
+                </div>
               </div>
               <div class="form-actions">
                 <button type="submit" [disabled]="!rdvForm.valid" class="btn-save">💾 Sauvegarder</button>
@@ -178,6 +203,18 @@ import { User } from '../../models/auth.model';
         (closed)="showProfileModal = false"
         (avatarUpdated)="onAvatarUpdated($event)">
       </app-profile-modal>
+      
+      <app-conflict-modal
+        [isVisible]="showConflictModal"
+        [message]="conflictMessage"
+        (closed)="showConflictModal = false">
+      </app-conflict-modal>
+      
+      <app-cancel-modal
+        [isVisible]="showCancelModal"
+        (closed)="showCancelModal = false"
+        (confirmed)="confirmCancelRendezVous($event)">
+      </app-cancel-modal>
     </div>
   `,
   styles: [`
@@ -209,6 +246,11 @@ import { User } from '../../models/auth.model';
     .content { flex: 1; padding: 2rem; }
     .global-footer { background-color: #f8f9fa; border-top: 1px solid #dee2e6; padding: 1rem 0; flex-shrink: 0; }
     .footer-content { text-align: center; font-size: 0.9rem; color: #666; font-weight: 500; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; padding: 1rem; background: white; border-radius: 8px; }
+    .btn-pagination { padding: 0.5rem 1rem; border: 1px solid #ddd; background: white; color: #333; border-radius: 4px; cursor: pointer; }
+    .btn-pagination:hover:not(:disabled) { background: #f8f9fa; }
+    .btn-pagination:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pagination-info { font-weight: 600; color: #333; }
     .navbar { background: linear-gradient(135deg, #28a745, #20c997); color: #fff; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
     .nav-brand h1 { margin: 0; font-weight: bold; }
     .nav-user { display: flex; align-items: center; gap: 1rem; }
@@ -234,9 +276,7 @@ import { User } from '../../models/auth.model';
     .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
     .btn-save { background: #28a745; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; }
     .btn-cancel { background: #dc3545; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; }
-    .filter-section { margin-bottom: 2rem; }
-    .filters { display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: 8px; }
-    .filter-select, .filter-date { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    /* Styles de filtres gérés par styles.css global */
     .rdv-timeline { display: flex; flex-direction: column; gap: 1rem; }
     .rdv-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 4px solid #28a745; }
     .rdv-card.status-confirme { border-left-color: #28a745; }
@@ -259,6 +299,9 @@ import { User } from '../../models/auth.model';
     .btn-confirm { background: #28a745; color: white; }
     .btn-cancel-rdv { background: #dc3545; color: white; }
     .global-footer { background: #f8f9fa; border-top: 1px solid #dee2e6; padding: 1rem 0; text-align: center; color: #666; }
+    .error-message { color: #dc3545; font-size: 0.8rem; margin-top: 0.25rem; display: block; }
+    .form-control.ng-invalid.ng-touched { border-color: #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25); }
+    .form-control.ng-valid.ng-touched { border-color: #28a745; box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25); }
   `]
 })
 export class SecretaireRendezVousComponent implements OnInit {
@@ -273,6 +316,13 @@ export class SecretaireRendezVousComponent implements OnInit {
   statusFilter = '';
   dateFilter = '';
   showProfileModal = false;
+  showConflictModal = false;
+  conflictMessage = '';
+  showCancelModal = false;
+  rdvToCancel: any = null;
+  currentPage = 1;
+  itemsPerPage = 10;
+  totalPages = 0;
 
   constructor(
     private rendezVousService: RendezVousService,
@@ -305,12 +355,18 @@ export class SecretaireRendezVousComponent implements OnInit {
   }
 
   loadRendezVous(): void {
+    console.log('🔄 Actualisation des rendez-vous...');
     this.rendezVousService.getAllRendezVous().subscribe({
       next: rdv => {
-        this.rendezVous = rdv;
-        this.filteredRendezVous = rdv;
+        console.log('✅ Rendez-vous chargés:', rdv.length);
+        // Trier du plus récent au plus ancien
+        this.rendezVous = rdv.sort((a, b) => new Date(b.dateHeureDebut).getTime() - new Date(a.dateHeureDebut).getTime());
+        this.currentPage = 1;
+        this.filterRendezVous();
+        // Rendez-vous chargés silencieusement
       },
-      error: () => {
+      error: (error) => {
+        console.error('❌ Erreur chargement:', error);
         this.notificationService.error('Erreur', 'Impossible de charger les rendez-vous');
       }
     });
@@ -342,11 +398,33 @@ export class SecretaireRendezVousComponent implements OnInit {
   }
 
   filterRendezVous(): void {
-    this.filteredRendezVous = this.rendezVous.filter(rdv => {
+    const filtered = this.rendezVous.filter(rdv => {
       const statusMatch = !this.statusFilter || rdv.statut === this.statusFilter;
       const dateMatch = !this.dateFilter || rdv.dateHeure?.startsWith(this.dateFilter);
       return statusMatch && dateMatch;
     });
+    this.totalPages = Math.ceil(filtered.length / this.itemsPerPage);
+    this.updatePaginatedResults(filtered);
+  }
+
+  updatePaginatedResults(filtered: any[]): void {
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    this.filteredRendezVous = filtered.slice(startIndex, endIndex);
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.filterRendezVous();
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.filterRendezVous();
+    }
   }
 
   saveRendezVous(): void {
@@ -379,11 +457,21 @@ export class SecretaireRendezVousComponent implements OnInit {
           console.log('Rendez-vous modifié avec succès:', response);
           this.loadRendezVous();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Rendez-vous modifié');
+          // Rendez-vous modifié silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la modification:', error);
-          this.notificationService.error('Erreur', 'Impossible de modifier le rendez-vous');
+          
+          if (error.status === 409 || (error.error && error.error.includes('conflit'))) {
+            this.conflictMessage = 'Créneau déjà occupé pour ce médecin à cette heure';
+            this.showConflictModal = true;
+          } else {
+            let errorMessage = 'Impossible de modifier le rendez-vous';
+            if (error.error && typeof error.error === 'string') {
+              errorMessage = error.error;
+            }
+            this.notificationService.error('Erreur', errorMessage);
+          }
         }
       });
     } else {
@@ -393,14 +481,21 @@ export class SecretaireRendezVousComponent implements OnInit {
           console.log('Rendez-vous créé avec succès:', response);
           this.loadRendezVous();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Rendez-vous créé');
+          // Rendez-vous créé silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la création:', error);
-          console.error('Status:', error.status);
-          console.error('Message:', error.message);
-          console.error('Error body:', error.error);
-          this.notificationService.error('Erreur', 'Impossible de créer le rendez-vous');
+          
+          if (error.status === 409 || (error.error && error.error.includes('conflit'))) {
+            this.conflictMessage = 'Créneau déjà occupé pour ce médecin à cette heure';
+            this.showConflictModal = true;
+          } else {
+            let errorMessage = 'Impossible de créer le rendez-vous';
+            if (error.error && typeof error.error === 'string') {
+              errorMessage = error.error;
+            }
+            this.notificationService.error('Erreur', errorMessage);
+          }
         }
       });
     }
@@ -456,7 +551,7 @@ export class SecretaireRendezVousComponent implements OnInit {
     this.rendezVousService.updateRendezVousStatus(rdv.id, 'CONFIRME').subscribe({
       next: () => {
         this.loadRendezVous();
-        this.notificationService.success('Succès', 'Rendez-vous confirmé');
+        // Rendez-vous confirmé silencieusement
       },
       error: () => {
         this.notificationService.error('Erreur', 'Impossible de confirmer le rendez-vous');
@@ -465,16 +560,22 @@ export class SecretaireRendezVousComponent implements OnInit {
   }
 
   cancelRendezVous(rdv: any): void {
-    if (confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) {
-      this.rendezVousService.updateRendezVousStatus(rdv.id, 'ANNULE').subscribe({
+    this.rdvToCancel = rdv;
+    this.showCancelModal = true;
+  }
+
+  confirmCancelRendezVous(motif: string): void {
+    if (this.rdvToCancel) {
+      this.rendezVousService.updateRendezVousStatus(this.rdvToCancel.id, 'ANNULE').subscribe({
         next: () => {
           this.loadRendezVous();
-          this.notificationService.success('Succès', 'Rendez-vous annulé');
+          // Rendez-vous annulé silencieusement
         },
         error: () => {
           this.notificationService.error('Erreur', 'Impossible d\'annuler le rendez-vous');
         }
       });
+      this.rdvToCancel = null;
     }
   }
 
@@ -520,6 +621,16 @@ export class SecretaireRendezVousComponent implements OnInit {
     if (this.currentUser) {
       this.currentUser.avatarUrl = avatarUrl;
     }
+  }
+
+  getTodayDate(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  getMaxRdvDate(): string {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 6);
+    return date.toISOString().split('T')[0];
   }
 
   logout(): void {

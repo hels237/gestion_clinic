@@ -25,18 +25,33 @@ public class FactureDto {
     private StatutFacture statut;
 
     private String numeroFacture;
+    
+    private java.time.LocalDateTime createdAt;
+    
+    private String patientNom;
 
     private List<PrescriptionDto> prescriptionDtos;
 
     public static FactureDto fromEntity(Facture facture) {
-        return
-                FactureDto
-                        .builder()
-                        .numeroFacture(facture.getNumeroFacture())
-                        .dateEcheance(facture.getDateEcheance())
-                        .montantTotal(facture.getMontantTotal())
-                        .statut(facture.getStatut())
-                        .montantTotal(facture.getMontantTotal())
-                        .prescriptionDtos(facture.getPrescription().stream().map(PrescriptionDto::fromEntity).toList()).build();
+        String patientNom = "";
+        if (!facture.getPrescription().isEmpty() && 
+            facture.getPrescription().get(0).getRendezvous() != null &&
+            facture.getPrescription().get(0).getRendezvous().getPatient() != null) {
+            var patient = facture.getPrescription().get(0).getRendezvous().getPatient();
+            patientNom = patient.getPrenom() + " " + patient.getNom();
+        }
+        
+        return FactureDto.builder()
+                .id(facture.getId())
+                .numeroFacture(facture.getNumeroFacture())
+                .dateEcheance(facture.getDateEcheance())
+                .montantTotal(facture.getMontantTotal())
+                .statut(facture.getStatut())
+                .createdAt(facture.getCreatedAt())
+                .patientNom(patientNom)
+                .prescriptionDtos(facture.getPrescription() != null ? 
+                    facture.getPrescription().stream().map(PrescriptionDto::fromEntity).toList() : 
+                    new java.util.ArrayList<>())
+                .build();
     }
 }

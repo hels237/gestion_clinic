@@ -11,6 +11,7 @@ import com.groupe.gestion_clinic.services.ChatMesssageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ChatMessageServiceImpl implements ChatMesssageService {
     private final ChatMessageRepository chatMessageRepository;
     private final UtilisateurRepository utilisateurRepository;
@@ -67,13 +69,21 @@ public class ChatMessageServiceImpl implements ChatMesssageService {
 
     @Override
     public List<ChatMessageDto> getConversation(Integer user1Id, Integer user2Id) {
-        // markMessagesAsRead(user2Id, user1Id);
-        return chatMessageRepository.findConversationBetweenUsers(user1Id, user2Id).stream()
+        System.out.println("ChatMessageService.getConversation - User1: " + user1Id + ", User2: " + user2Id);
+        
+        List<ChatMessage> messages = chatMessageRepository.findConversationBetweenUsers(user1Id, user2Id);
+        System.out.println("Messages bruts trouvés: " + messages.size());
+        
+        List<ChatMessageDto> result = messages.stream()
                 .map(ChatMessageDto::fromEntity)
                 .collect(Collectors.toList());
+        
+        System.out.println("Messages DTO créés: " + result.size());
+        return result;
     }
 
     @Override
+    @Transactional
     public void markMessagesAsRead(Integer senderId, Integer receiverId) {
         chatMessageRepository.markMessagesAsRead(senderId, receiverId);
     }

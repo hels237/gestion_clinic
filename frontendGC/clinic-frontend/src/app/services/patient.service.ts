@@ -30,4 +30,18 @@ export class PatientService {
   deletePatient(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  getPatientsPaginated(page: number = 0, size: number = 10): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/paginated?page=${page}&size=${size}`);
+  }
+
+  getPatientHistory(id: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${id}/history`);
+  }
+
+  downloadPatientHistoryPdf(id: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${id}/history/pdf`, {
+      responseType: 'blob'
+    });
+  }
 }

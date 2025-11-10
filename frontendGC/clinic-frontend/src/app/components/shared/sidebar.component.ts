@@ -15,6 +15,7 @@ import { Observable } from 'rxjs';
         <li><a routerLink="/patients" routerLinkActive="active">👥 Patients</a></li>
         <li *ngIf="canAccessMedecins$ | async"><a routerLink="/medecins" routerLinkActive="active">👨⚕️ Médecins</a></li>
         <li><a routerLink="/rendezvous" routerLinkActive="active">📅 Rendez-vous</a></li>
+        <li><a routerLink="/calendar" routerLinkActive="active">🗓️ Calendrier</a></li>
         <li *ngIf="canAccessUsers$ | async"><a routerLink="/users" routerLinkActive="active">👥 Utilisateurs</a></li>
       </ul>
       <div class="sidebar-footer"></div>

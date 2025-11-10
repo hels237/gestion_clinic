@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { User } from '../models/auth.model';
 
+export { User } from '../models/auth.model';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -27,5 +29,23 @@ export class UserService {
     const token = localStorage.getItem('token');
     const headers = { 'Authorization': `Bearer ${token}` };
     return this.http.get<User[]>(`${this.baseUrl}/secretaires`, { headers });
+  }
+
+  createUser(user: User): Observable<User> {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    return this.http.post<User>(`${this.baseUrl}/users`, user, { headers });
+  }
+
+  updateUser(id: number, user: User): Observable<User> {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    return this.http.put<User>(`${this.baseUrl}/users/${id}`, user, { headers });
+  }
+
+  deleteUser(id: number): Observable<void> {
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    return this.http.delete<void>(`${this.baseUrl}/users/${id}`, { headers });
   }
 }

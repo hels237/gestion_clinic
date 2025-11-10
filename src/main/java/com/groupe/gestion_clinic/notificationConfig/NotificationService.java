@@ -83,9 +83,44 @@ public class NotificationService {
 
         sendPrivateNotification(rdv.getPatient().getId().longValue(), patientNotif);
         emailService.sendReminderEmail(
-                                        rdv.getMedecin().getEmail(),
+                                        rdv.getPatient().getEmail(),
                                         "Rappel de rendez-vous",
-                                        "Rappel : RDV avec "+rdv.getMedecin().getNom()+" a "+rdv.getDateHeureDebut().toLocalTime());
+                                        "Rappel : RDV avec Dr. "+rdv.getMedecin().getNom()+" à "+rdv.getDateHeureDebut().toLocalTime());
+    }
+
+    public void sendPrescriptionNotification(com.groupe.gestion_clinic.model.Prescription prescription) {
+        // Notification WebSocket
+        NotificationDto notif = new NotificationDto(
+                "NEW_PRESCRIPTION",
+                "Nouvelle prescription pour " + prescription.getRendezvous().getPatient().getNom(),
+                prescription.getId(),
+                LocalDateTime.now(),
+                "PRESCRIPTION",
+                prescription.getRendezvous().getPatient().getId().longValue()
+        );
+        
+        sendPrivateNotification(prescription.getRendezvous().getPatient().getId().longValue(), notif);
+        
+        // Email au patient
+        emailService.sendPrescriptionEmail(
+                prescription.getRendezvous().getPatient().getEmail(),
+                prescription.getRendezvous().getPatient().getNom(),
+                prescription.getMedicament()
+        );
+    }
+
+    public void sendFactureNotification(com.groupe.gestion_clinic.model.Facture facture) {
+        // Notification WebSocket
+        NotificationDto notif = new NotificationDto(
+                "NEW_FACTURE",
+                "Nouvelle facture " + facture.getNumeroFacture(),
+                facture.getId(),
+                LocalDateTime.now(),
+                "FACTURE",
+                facture.getPrescription().get(0).getRendezvous().getPatient().getId().longValue()
+        );
+        
+        sendPrivateNotification(facture.getPrescription().get(0).getRendezvous().getPatient().getId().longValue(), notif);
     }
 
 

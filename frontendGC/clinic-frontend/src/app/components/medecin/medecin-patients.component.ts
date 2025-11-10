@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { ProfileModalComponent } from '../shared/profile-modal.component';
+import { PatientHistoryModalComponent } from './patient-history-modal.component';
 import { PatientService } from '../../services/patient.service';
 import { NotificationService } from '../../services/notification.service';
 import { AuthService } from '../../services/auth.service';
@@ -11,7 +12,7 @@ import { User } from '../../models/auth.model';
 @Component({
   selector: 'app-medecin-patients',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ProfileModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ProfileModalComponent, PatientHistoryModalComponent],
   template: `
     <div class="dashboard-container">
       <nav class="navbar">
@@ -31,6 +32,7 @@ import { User } from '../../models/auth.model';
               <li><a routerLink="/medecin">📊 Tableau de bord</a></li>
               <li><a routerLink="/medecin/patients" class="active">👥 Mes Patients</a></li>
               <li><a routerLink="/medecin/rendezvous">📅 Mes Rendez-vous</a></li>
+              <li><a routerLink="/medecin/prescriptions">💊 Prescriptions</a></li>
             </ul>
           </div>
           <div class="sidebar-footer">
@@ -45,7 +47,7 @@ import { User } from '../../models/auth.model';
               </div>
             </div>
             <button (click)="logout()" class="btn-logout-sidebar">
-              <span class="logout-icon">🚪</span>
+              <span class="logout-icon">🔓</span>
               Déconnexion
             </button>
           </div>
@@ -53,13 +55,13 @@ import { User } from '../../models/auth.model';
         
         <main class="content">
           <div class="header">
-            <h2>👥 Mes Patients</h2>
+            <h2>👤 Mes Patients</h2>
             <div class="header-actions">
-              <button (click)="loadPatients()" class="btn-secondary" type="button">🔄 Actualiser</button>
+              <button (click)="loadPatients()" class="btn-refresh" type="button">↻ Actualiser</button>
             </div>
           </div>
 
-          <div class="search-section">
+          <div class="filter-section">
             <input type="text" [(ngModel)]="searchQuery" (input)="filterPatients()" 
                    placeholder="Rechercher un patient..." class="search-input">
           </div>
@@ -75,19 +77,20 @@ import { User } from '../../models/auth.model';
                 <span class="patient-age">{{ calculateAge(patient.dateNaissance) }} ans</span>
               </div>
               <div class="patient-details">
-                <p><strong>📧 Email:</strong> {{ patient.email }}</p>
-                <p><strong>📞 Téléphone:</strong> {{ patient.telephone }}</p>
-                <p><strong>🎂 Né(e) le:</strong> {{ patient.dateNaissance | date:'dd/MM/yyyy' }}</p>
+                <p><strong>✉️ Email:</strong> {{ patient.email }}</p>
+                <p><strong>☎️ Téléphone:</strong> {{ patient.telephone }}</p>
+                <p><strong>🗓️ Né(e) le:</strong> {{ patient.dateNaissance | date:'dd/MM/yyyy' }}</p>
                 <div *ngIf="patient.antecedents" class="patient-medical">
-                  <p><strong>🏥 Antécédents:</strong> {{ patient.antecedents }}</p>
+                  <p><strong>🏨 Antécédents:</strong> {{ patient.antecedents }}</p>
                 </div>
                 <div *ngIf="patient.allergies" class="patient-medical">
                   <p><strong>⚠️ Allergies:</strong> {{ patient.allergies }}</p>
                 </div>
               </div>
               <div class="patient-actions">
-                <button (click)="scheduleAppointment(patient)" class="btn-primary">📅 Nouveau RDV</button>
-                <button (click)="viewHistory(patient)" class="btn-secondary">📋 Historique</button>
+                <button (click)="viewHistory(patient)" class="btn-info">Historique</button>
+                <button (click)="scheduleAppointment(patient)" class="btn-primary">Nouveau RDV</button>
+                <button (click)="createPrescription(patient)" class="btn-success">Prescription</button>
               </div>
             </div>
           </div>
@@ -114,6 +117,12 @@ import { User } from '../../models/auth.model';
         (closed)="showProfileModal = false"
         (avatarUpdated)="onAvatarUpdated($event)">
       </app-profile-modal>
+      
+      <app-patient-history-modal 
+        [isVisible]="showHistoryModal" 
+        [patient]="selectedPatient"
+        (closed)="showHistoryModal = false">
+      </app-patient-history-modal>
     </div>
   `,
   styles: [`
@@ -145,10 +154,8 @@ import { User } from '../../models/auth.model';
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .header h2 { margin: 0; color: #333; }
     .header-actions { display: flex; gap: 1rem; }
-    .btn-secondary { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: #6c757d; color: white; }
-    .search-section { margin-bottom: 2rem; }
-    .search-input { width: 100%; max-width: 400px; padding: 0.75rem 1rem; border: 2px solid #e0e6ed; border-radius: 25px; font-size: 1rem; outline: none; }
-    .search-input:focus { border-color: #007bff; }
+    /* Style géré par styles.css global */
+    /* Styles de recherche gérés par styles.css global */
     .patients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
     .patient-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 4px solid #007bff; }
     .patient-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
@@ -157,8 +164,51 @@ import { User } from '../../models/auth.model';
     .patient-details { margin-bottom: 1rem; }
     .patient-details p { margin: 0.5rem 0; color: #666; }
     .patient-medical { background: #f8f9fa; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; }
-    .patient-actions { display: flex; gap: 0.5rem; }
-    .btn-primary { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; background: #007bff; color: white; }
+    .patient-actions { 
+      display: flex; 
+      gap: 0.5rem; 
+      justify-content: space-between; 
+      margin-top: 1.5rem; 
+      flex-wrap: wrap;
+    }
+    .btn-info, .btn-primary, .btn-success { 
+      padding: 0.6rem 0.8rem; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-size: 0.8rem; 
+      font-weight: 600;
+      color: white; 
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      flex: 1;
+      text-align: center;
+      min-width: 0;
+    }
+    .btn-info { 
+      background: linear-gradient(135deg, #17a2b8, #138496); 
+    }
+    .btn-info:hover { 
+      background: linear-gradient(135deg, #138496, #117a8b); 
+      transform: translateY(-3px); 
+      box-shadow: 0 6px 16px rgba(23, 162, 184, 0.4);
+    }
+    .btn-primary { 
+      background: linear-gradient(135deg, #007bff, #0056b3); 
+    }
+    .btn-primary:hover { 
+      background: linear-gradient(135deg, #0056b3, #004085); 
+      transform: translateY(-3px); 
+      box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+    }
+    .btn-success { 
+      background: linear-gradient(135deg, #28a745, #20c997); 
+    }
+    .btn-success:hover { 
+      background: linear-gradient(135deg, #20c997, #1e7e34); 
+      transform: translateY(-3px); 
+      box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    }
     .no-patients { text-align: center; padding: 3rem; color: #666; background: white; border-radius: 12px; }
     .pagination-info { text-align: center; margin-bottom: 1rem; color: #666; }
     .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; padding: 1rem; background: white; border-radius: 8px; }
@@ -174,6 +224,8 @@ export class MedecinPatientsComponent implements OnInit {
   currentUser: User | null = null;
   searchQuery = '';
   showProfileModal = false;
+  showHistoryModal = false;
+  selectedPatient: any = null;
   currentPage = 1;
   patientsPerPage = 10;
   paginatedPatients: any[] = [];
@@ -201,7 +253,7 @@ export class MedecinPatientsComponent implements OnInit {
         this.filteredPatients = patients;
         this.currentPage = 1;
         this.updatePaginatedPatients();
-        this.notificationService.success('Actualisation', `${patients.length} patients chargés`);
+        // Patients chargés silencieusement
       },
       error: (error) => {
         console.error('Erreur lors du chargement des patients:', error);
@@ -263,8 +315,13 @@ export class MedecinPatientsComponent implements OnInit {
     this.router.navigate(['/medecin/rendezvous'], { queryParams: { patientId: patient.id } });
   }
 
+  createPrescription(patient: any): void {
+    this.router.navigate(['/medecin/prescriptions'], { queryParams: { patientId: patient.id } });
+  }
+
   viewHistory(patient: any): void {
-    this.notificationService.info('Historique', `Historique médical de ${patient.prenom} ${patient.nom}`);
+    this.selectedPatient = patient;
+    this.showHistoryModal = true;
   }
 
   onAvatarUpdated(avatarUrl: string): void {

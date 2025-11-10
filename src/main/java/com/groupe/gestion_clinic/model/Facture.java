@@ -25,6 +25,10 @@ public class Facture extends AbstractEntity{
     @Column(nullable = false)
     private Double montantTotal;
 
+    private Double fraisConsultation;
+    private Double fraisHospitalisation;
+    private Double fraisExamen;
+
     private LocalDate dateEcheance;
 
     @Column(name = "idEntreprise")

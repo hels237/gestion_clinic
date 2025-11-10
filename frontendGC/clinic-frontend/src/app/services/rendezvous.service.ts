@@ -42,4 +42,8 @@ export class RendezVousService {
   getUpcomingRendezVous(): Observable<RendezVous[]> {
     return this.http.get<RendezVous[]>(`${this.apiUrl}/all/upcoming`);
   }
+
+  getRendezVousPaginated(page: number = 0, size: number = 10): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/all/paginated?page=${page}&size=${size}`);
+  }
 }

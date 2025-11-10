@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { ProfileModalComponent } from '../shared/profile-modal.component';
+import { PatientHistoryModalComponent } from '../medecin/patient-history-modal.component';
 import { PatientService } from '../../services/patient.service';
 import { NotificationService } from '../../services/notification.service';
 import { AuthService } from '../../services/auth.service';
@@ -12,7 +13,7 @@ import { User } from '../../models/auth.model';
 @Component({
   selector: 'app-secretaire-patients',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ProfileModalComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ProfileModalComponent, PatientHistoryModalComponent],
   template: `
     <div class="dashboard-container">
       <nav class="navbar">
@@ -56,7 +57,7 @@ import { User } from '../../models/auth.model';
               </div>
             </div>
             <button (click)="logout()" class="btn-logout-sidebar">
-              <span class="logout-icon">🚪</span>
+              <span class="logout-icon">🔓</span>
               Déconnexion
             </button>
           </div>
@@ -64,12 +65,12 @@ import { User } from '../../models/auth.model';
         
         <main class="content">
           <div class="header">
-            <h2>👥 Gestion des Patients</h2>
+            <h2>👤 Gestion des Patients</h2>
             <div class="header-actions">
               <button (click)="showAddForm = !showAddForm" class="btn-primary">
-                {{ showAddForm ? '❌ Annuler' : '➕ Nouveau Patient' }}
+                {{ showAddForm ? '✖️ Annuler' : '✚ Nouveau Patient' }}
               </button>
-              <button (click)="loadPatients()" class="btn-secondary">🔄 Actualiser</button>
+              <button (click)="loadPatients()" class="btn-refresh">↻ Actualiser</button>
             </div>
           </div>
 
@@ -79,36 +80,71 @@ import { User } from '../../models/auth.model';
               <div class="form-row">
                 <div class="form-group">
                   <label>Nom *:</label>
-                  <input [(ngModel)]="currentPatient.nom" name="nom" required class="form-control">
+                  <input [(ngModel)]="currentPatient.nom" name="nom" required 
+                         minlength="2" maxlength="50" pattern="[a-zA-ZÀ-ÿ\s-']+" 
+                         class="form-control" #nomField="ngModel">
+                  <div *ngIf="nomField.invalid && nomField.touched" class="error-message">
+                    <span *ngIf="nomField.errors?.['required']">Le nom est obligatoire</span>
+                    <span *ngIf="nomField.errors?.['minlength']">Minimum 2 caractères</span>
+                    <span *ngIf="nomField.errors?.['maxlength']">Maximum 50 caractères</span>
+                    <span *ngIf="nomField.errors?.['pattern']">Seules les lettres sont autorisées</span>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label>Prénom *:</label>
-                  <input [(ngModel)]="currentPatient.prenom" name="prenom" required class="form-control">
+                  <input [(ngModel)]="currentPatient.prenom" name="prenom" required 
+                         minlength="2" maxlength="50" pattern="[a-zA-ZÀ-ÿ\s-']+" 
+                         class="form-control" #prenomField="ngModel">
+                  <div *ngIf="prenomField.invalid && prenomField.touched" class="error-message">
+                    <span *ngIf="prenomField.errors?.['required']">Le prénom est obligatoire</span>
+                    <span *ngIf="prenomField.errors?.['minlength']">Minimum 2 caractères</span>
+                    <span *ngIf="prenomField.errors?.['maxlength']">Maximum 50 caractères</span>
+                    <span *ngIf="prenomField.errors?.['pattern']">Seules les lettres sont autorisées</span>
+                  </div>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
                   <label>Email *:</label>
-                  <input type="email" [(ngModel)]="currentPatient.email" name="email" required class="form-control">
+                  <input type="email" [(ngModel)]="currentPatient.email" name="email" required 
+                         pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" 
+                         class="form-control" #emailField="ngModel">
+                  <div *ngIf="emailField.invalid && emailField.touched" class="error-message">
+                    <span *ngIf="emailField.errors?.['required']">L'email est obligatoire</span>
+                    <span *ngIf="emailField.errors?.['email'] || emailField.errors?.['pattern']">Format email invalide</span>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label>Téléphone *:</label>
-                  <input [(ngModel)]="currentPatient.telephone" name="telephone" required class="form-control">
+                  <input [(ngModel)]="currentPatient.telephone" name="telephone" required 
+                         pattern="[0-9+\s-()]{8,15}" maxlength="15" 
+                         class="form-control" #telephoneField="ngModel">
+                  <div *ngIf="telephoneField.invalid && telephoneField.touched" class="error-message">
+                    <span *ngIf="telephoneField.errors?.['required']">Le téléphone est obligatoire</span>
+                    <span *ngIf="telephoneField.errors?.['pattern']">Format invalide (8-15 chiffres)</span>
+                  </div>
                 </div>
               </div>
               <div class="form-group">
                 <label>Date de naissance *:</label>
-                <input type="date" [(ngModel)]="currentPatient.dateNaissance" name="dateNaissance" required class="form-control">
+                <input type="date" [(ngModel)]="currentPatient.dateNaissance" name="dateNaissance" required 
+                       [max]="getMaxDate()" [min]="getMinDate()" 
+                       class="form-control" #dateField="ngModel">
+                <div *ngIf="dateField.invalid && dateField.touched" class="error-message">
+                  <span *ngIf="dateField.errors?.['required']">La date de naissance est obligatoire</span>
+                  <span *ngIf="dateField.errors?.['max']">Date future non autorisée</span>
+                  <span *ngIf="dateField.errors?.['min']">Âge maximum 120 ans</span>
+                </div>
               </div>
               <div class="form-actions">
-                <button type="submit" [disabled]="!patientForm.valid" class="btn-save">💾 Sauvegarder</button>
-                <button type="button" (click)="cancelEdit()" class="btn-cancel">❌ Annuler</button>
+                <button type="submit" [disabled]="!patientForm.valid" class="btn-save">💿 Sauvegarder</button>
+                <button type="button" (click)="cancelEdit()" class="btn-cancel">✖️ Annuler</button>
               </div>
             </form>
           </div>
 
-          <div class="search-section">
-            <input [(ngModel)]="searchTerm" (input)="filterPatients()" placeholder="🔍 Rechercher un patient..." class="search-input">
+          <div class="filter-section">
+            <input [(ngModel)]="searchTerm" (input)="filterPatients()" placeholder="Rechercher un patient..." class="search-input">
           </div>
 
           <div class="pagination-info">
@@ -119,17 +155,19 @@ import { User } from '../../models/auth.model';
             <div *ngFor="let patient of paginatedPatients" class="patient-card">
               <div class="patient-header">
                 <h4>{{ patient.prenom }} {{ patient.nom }}</h4>
-                <div class="patient-actions">
-                  <button (click)="editPatient(patient)" class="btn-edit">✏️</button>
-                  <button (click)="viewPatient(patient)" class="btn-view">👁️</button>
-                </div>
+
               </div>
               <div class="patient-info">
-                <p><strong>📧</strong> {{ patient.email }}</p>
-                <p><strong>📞</strong> {{ patient.telephone }}</p>
-                <p><strong>🎂</strong> {{ patient.dateNaissance | date:'dd/MM/yyyy' }}</p>
+                <p><strong>✉️</strong> {{ patient.email }}</p>
+                <p><strong>☎️</strong> {{ patient.telephone }}</p>
+                <p><strong>🗓️</strong> {{ patient.dateNaissance | date:'dd/MM/yyyy' }}</p>
               </div>
-              <button (click)="scheduleAppointment(patient)" class="btn-appointment">📅 Planifier RDV</button>
+              <div class="patient-actions">
+                <button (click)="viewHistory(patient)" class="btn-history">Historique</button>
+                <button (click)="editPatient(patient)" class="btn-edit">Modifier</button>
+                <button (click)="viewPatient(patient)" class="btn-view">Voir</button>
+              </div>
+              <button (click)="scheduleAppointment(patient)" class="btn-appointment">🗓️ Planifier RDV</button>
             </div>
           </div>
 
@@ -151,6 +189,12 @@ import { User } from '../../models/auth.model';
         (closed)="showProfileModal = false"
         (avatarUpdated)="onAvatarUpdated($event)">
       </app-profile-modal>
+      
+      <app-patient-history-modal 
+        [isVisible]="showHistoryModal" 
+        [patient]="selectedPatient"
+        (closed)="showHistoryModal = false">
+      </app-patient-history-modal>
     </div>
   `,
   styles: [`
@@ -195,9 +239,25 @@ import { User } from '../../models/auth.model';
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .header h2 { margin: 0; color: #333; }
     .header-actions { display: flex; gap: 1rem; }
-    .btn-primary, .btn-secondary { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .btn-primary { background: #28a745; color: #fff; }
-    .btn-secondary { background: #6c757d; color: white; }
+    .btn-primary { 
+      background: linear-gradient(135deg, #28a745, #20c997); 
+      color: #fff; 
+      padding: 0.75rem 1.5rem; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 8px rgba(40, 167, 69, 0.2);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .btn-primary:hover { 
+      background: linear-gradient(135deg, #20c997, #1e7e34); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    }
     .patient-form { background: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
     .form-group { margin-bottom: 1rem; }
@@ -207,20 +267,63 @@ import { User } from '../../models/auth.model';
     .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
     .btn-save { background: #28a745; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; }
     .btn-cancel { background: #dc3545; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; }
-    .search-section { margin-bottom: 2rem; }
-    .search-input { width: 100%; padding: 1rem; border: 2px solid #e0e6ed; border-radius: 25px; font-size: 1rem; }
-    .search-input:focus { outline: none; border-color: #28a745; }
+    /* Styles de recherche gérés par styles.css global */
     .patients-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
     .patient-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 4px solid #28a745; }
     .patient-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .patient-header h4 { margin: 0; color: #333; }
-    .patient-actions { display: flex; gap: 0.5rem; }
-    .btn-edit, .btn-view { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0.25rem; }
-    .btn-edit:hover { color: #28a745; }
-    .btn-view:hover { color: #007bff; }
+    .patient-actions { 
+      display: flex; 
+      gap: 0.5rem; 
+      justify-content: space-between; 
+      margin-top: 1rem; 
+      flex-wrap: wrap;
+    }
+    .btn-history, .btn-edit, .btn-view { 
+      background: linear-gradient(135deg, #6c757d, #5a6268); 
+      color: white; 
+      border: none; 
+      padding: 0.5rem 0.75rem; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-size: 0.8rem; 
+      font-weight: 600; 
+      transition: all 0.3s ease; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12); 
+      flex: 1;
+      text-align: center;
+      min-width: 0;
+    }
+    .btn-history { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .btn-history:hover { background: linear-gradient(135deg, #138496, #117a8b); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3); }
+    .btn-edit { background: linear-gradient(135deg, #28a745, #20c997); }
+    .btn-edit:hover { background: linear-gradient(135deg, #20c997, #1e7e34); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); }
+    .btn-view { background: linear-gradient(135deg, #007bff, #0056b3); }
+    .btn-view:hover { background: linear-gradient(135deg, #0056b3, #004085); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3); }
     .patient-info p { margin: 0.5rem 0; color: #666; }
-    .btn-appointment { width: 100%; background: #28a745; color: #fff; border: none; padding: 0.75rem; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 1rem; }
-    .btn-appointment:hover { background: #20c997; }
+    .btn-appointment { 
+      width: 100%; 
+      background: linear-gradient(135deg, #28a745, #20c997); 
+      color: #fff; 
+      border: none; 
+      padding: 0.85rem; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      font-weight: 700; 
+      font-size: 0.95rem;
+      margin-top: 1.5rem; 
+      transition: all 0.3s ease;
+      box-shadow: 0 3px 8px rgba(40, 167, 69, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .btn-appointment:hover { 
+      background: linear-gradient(135deg, #20c997, #1e7e34); 
+      transform: translateY(-2px); 
+      box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    }
     .pagination-info { text-align: center; margin-bottom: 1rem; color: #666; }
     .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 2rem; padding: 1rem; background: white; border-radius: 8px; }
     .btn-pagination { padding: 0.5rem 1rem; border: 1px solid #28a745; background: white; color: #28a745; border-radius: 4px; cursor: pointer; }
@@ -228,6 +331,9 @@ import { User } from '../../models/auth.model';
     .btn-pagination:disabled { opacity: 0.5; cursor: not-allowed; }
     .page-info { font-weight: bold; color: #333; }
     .global-footer { background: #f8f9fa; border-top: 1px solid #dee2e6; padding: 1rem 0; text-align: center; color: #666; }
+    .error-message { color: #dc3545; font-size: 0.8rem; margin-top: 0.25rem; display: block; }
+    .form-control.ng-invalid.ng-touched { border-color: #dc3545; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25); }
+    .form-control.ng-valid.ng-touched { border-color: #28a745; box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25); }
   `]
 })
 export class SecretairePatientsComponent implements OnInit {
@@ -239,6 +345,8 @@ export class SecretairePatientsComponent implements OnInit {
   currentUser: User | null = null;
   searchTerm = '';
   showProfileModal = false;
+  showHistoryModal = false;
+  selectedPatient: Patient | null = null;
   currentPage = 1;
   patientsPerPage = 10;
   paginatedPatients: any[] = [];
@@ -264,7 +372,7 @@ export class SecretairePatientsComponent implements OnInit {
         this.filteredPatients = patients;
         this.currentPage = 1;
         this.updatePaginatedPatients();
-        this.notificationService.success('Patients', `${patients.length} patients chargés`);
+        // Patients chargés silencieusement
       },
       error: () => {
         this.notificationService.error('Erreur', 'Impossible de charger les patients');
@@ -335,7 +443,7 @@ export class SecretairePatientsComponent implements OnInit {
         next: () => {
           this.loadPatients();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Patient modifié avec succès');
+          // Patient modifié silencieusement
         },
         error: () => {
           this.notificationService.error('Erreur', 'Impossible de modifier le patient');
@@ -346,7 +454,7 @@ export class SecretairePatientsComponent implements OnInit {
         next: () => {
           this.loadPatients();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Patient créé avec succès');
+          // Patient créé silencieusement
         },
         error: () => {
           this.notificationService.error('Erreur', 'Impossible de créer le patient');
@@ -359,6 +467,11 @@ export class SecretairePatientsComponent implements OnInit {
     this.currentPatient = { ...patient };
     this.editingPatient = true;
     this.showAddForm = true;
+  }
+
+  viewHistory(patient: Patient): void {
+    this.selectedPatient = patient;
+    this.showHistoryModal = true;
   }
 
   viewPatient(patient: Patient): void {
@@ -379,6 +492,16 @@ export class SecretairePatientsComponent implements OnInit {
     if (this.currentUser) {
       this.currentUser.avatarUrl = avatarUrl;
     }
+  }
+
+  getMaxDate(): string {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  getMinDate(): string {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 120);
+    return date.toISOString().split('T')[0];
   }
 
   logout(): void {

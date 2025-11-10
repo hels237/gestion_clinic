@@ -43,6 +43,12 @@ public class MedecinController {
         return ResponseEntity.ok(medecinService.findAll());
     }
 
+    // Endpoint pour compatibilité avec le frontend
+    @GetMapping
+    public ResponseEntity<List<MedecinDto>> getAllMedecins(){
+        return ResponseEntity.ok(medecinService.findAll());
+    }
+
 
     @Operation(summary = "Delete Medecin by ID", description = "Deletes a Medecin entity by its ID")
     @DeleteMapping("/{medecinId}")

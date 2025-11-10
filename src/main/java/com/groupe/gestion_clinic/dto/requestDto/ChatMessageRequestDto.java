@@ -9,9 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatMessageRequestDto {
-    // L'ID de l'expéditeur sera extrait du contexte de sécurité (token JWT)
+    private Integer senderId;
     private Integer receiverId;
     private String content;
-
-
 }

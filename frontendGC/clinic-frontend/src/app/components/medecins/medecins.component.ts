@@ -76,11 +76,11 @@ import { Medecin, Role } from '../../models/medecin.model';
           <div class="form-row">
             <div class="form-group">
               <label>Rue:</label>
-              <input [ngModel]="currentMedecin.adressDto?.street" (ngModelChange)="updateAdresse('street', $event)" name="street" required class="form-control">
+              <input [ngModel]="currentMedecin.adressDto.street" (ngModelChange)="updateAdresse('street', $event)" name="street" required class="form-control">
             </div>
             <div class="form-group">
               <label>Numéro:</label>
-              <input [ngModel]="currentMedecin.adressDto?.houseNumber" (ngModelChange)="updateAdresse('houseNumber', $event)" name="houseNumber" class="form-control">
+              <input [ngModel]="currentMedecin.adressDto.houseNumber" (ngModelChange)="updateAdresse('houseNumber', $event)" name="houseNumber" class="form-control">
             </div>
           </div>
           <div class="form-row">
@@ -202,7 +202,7 @@ export class MedecinsComponent implements OnInit {
     this.medecinService.getAllMedecins().subscribe({
       next: medecins => {
         this.medecins = medecins;
-        this.notificationService.success('Médecins', `${medecins.length} médecins chargés`);
+        // Médecins chargés silencieusement
       },
       error: () => {
         this.notificationService.error('Erreur', 'Impossible de charger les médecins');
@@ -237,7 +237,7 @@ export class MedecinsComponent implements OnInit {
           console.log('Médecin modifié avec succès:', response);
           this.loadMedecins();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Médecin modifié avec succès');
+          // Médecin modifié silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la modification:', error);
@@ -250,7 +250,7 @@ export class MedecinsComponent implements OnInit {
           console.log('Médecin créé avec succès:', response);
           this.loadMedecins();
           this.cancelEdit();
-          this.notificationService.success('Succès', 'Médecin créé avec succès');
+          // Médecin créé silencieusement
         },
         error: (error) => {
           console.error('Erreur lors de la création:', error);
@@ -280,7 +280,7 @@ export class MedecinsComponent implements OnInit {
       this.medecinService.deleteMedecin(id).subscribe({
         next: () => {
           this.loadMedecins();
-          this.notificationService.success('Succès', 'Médecin supprimé avec succès');
+          // Médecin supprimé silencieusement
         },
         error: () => {
           this.notificationService.error('Erreur', 'Impossible de supprimer le médecin');

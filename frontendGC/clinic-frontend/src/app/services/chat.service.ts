@@ -16,6 +16,7 @@ export interface ChatMessage {
 }
 
 export interface ChatMessageRequest {
+  senderId: number;
   receiverId: number;
   content: string;
 }
@@ -35,26 +36,49 @@ export class ChatService {
     private http: HttpClient,
     private webSocketService: WebSocketService
   ) {
-    this.setupWebSocketListeners();
+    // Delay WebSocket setup until connection is established
+    setTimeout(() => this.setupWebSocketListeners(), 1000);
   }
 
   private setupWebSocketListeners(): void {
-    // Listen for incoming messages via WebSocket
-    this.webSocketService.client?.subscribe('/user/queue/chat', (message) => {
-      const chatMessage: ChatMessage = JSON.parse(message.body);
-      this.addMessage(chatMessage);
-      this.updateUnreadCounts();
-    });
+    // Check if WebSocket is connected before subscribing
+    if (this.webSocketService.client?.connected) {
+      this.webSocketService.client.subscribe('/user/queue/chat', (message) => {
+        const chatMessage: ChatMessage = JSON.parse(message.body);
+        console.log('Nouveau message reçu via WebSocket:', chatMessage);
+        this.addMessageToConversation(chatMessage);
+        this.updateUnreadCounts();
+      });
+    } else {
+      // Retry after a delay if not connected
+      setTimeout(() => this.setupWebSocketListeners(), 2000);
+    }
   }
 
   sendMessage(request: ChatMessageRequest): void {
+    console.log('ChatService.sendMessage appelé avec:', request);
+    
     const token = localStorage.getItem('token');
+    console.log('Token récupéré:', token ? 'Présent' : 'Absent');
+    
+    console.log('WebSocket status:', this.webSocketService.getConnectionStatus());
+    console.log('WebSocket isConnected:', this.webSocketService.isConnected());
+    
     if (this.webSocketService.client?.connected) {
+      console.log('Envoi du message via WebSocket...');
       this.webSocketService.client.publish({
         destination: '/app/chat.sendMessage',
         body: JSON.stringify(request),
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'content-type': 'application/json'
+        }
       });
+      console.log('Message publié sur WebSocket');
+    } else {
+      console.warn('WebSocket non connecté, impossible d\'envoyer le message');
+      console.log('Tentative de connexion WebSocket...');
+      this.webSocketService.connect();
     }
   }
 
@@ -87,23 +111,68 @@ export class ChatService {
         body: JSON.stringify({ senderId }),
         headers: { 'Authorization': `Bearer ${token}` }
       });
+    } else {
+      // Fallback HTTP request if WebSocket is not connected
+      const headers = { 'Authorization': `Bearer ${token}` };
+      this.http.put(`${this.baseUrl}/mark-read/${senderId}`, {}, { headers }).subscribe({
+        next: () => {
+          console.log('Messages marqués comme lus via HTTP');
+        },
+        error: error => console.error('Erreur lors du marquage comme lu:', error)
+      });
+    }
+    // Mettre à jour immédiatement les compteurs
+    this.updateUnreadCounts();
+  }
+
+  private addMessageToConversation(message: ChatMessage): void {
+    const current = this.messagesSubject.value;
+    // Vérifier si le message n'existe pas déjà pour éviter les doublons
+    const exists = current.some(m => 
+      m.senderId === message.senderId && 
+      m.receiverId === message.receiverId && 
+      m.content === message.content && 
+      Math.abs(new Date(m.timestamp).getTime() - new Date(message.timestamp).getTime()) < 1000
+    );
+    
+    if (!exists) {
+      const updated = [...current, message].sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      console.log('Ajout du message à la conversation:', message);
+      this.messagesSubject.next(updated);
     }
   }
 
-  private addMessage(message: ChatMessage): void {
-    const current = this.messagesSubject.value;
-    this.messagesSubject.next([...current, message]);
-  }
-
   private updateUnreadCounts(): void {
-    this.getUnreadCounts().subscribe(counts => {
-      this.unreadCountsSubject.next(counts);
+    this.getUnreadCounts().subscribe({
+      next: counts => {
+        console.log('Mise à jour compteurs non lus:', counts);
+        this.unreadCountsSubject.next(counts);
+      },
+      error: error => {
+        console.warn('Erreur lors de la récupération des compteurs non lus:', error);
+      }
     });
   }
 
+  // Method to initialize WebSocket listeners when connection is ready
+  initializeWebSocketListeners(): void {
+    this.setupWebSocketListeners();
+  }
+
   loadConversation(otherUserId: number): void {
-    this.getConversation(otherUserId).subscribe(messages => {
-      this.messagesSubject.next(messages);
+    console.log('ChatService.loadConversation pour userId:', otherUserId);
+    this.getConversation(otherUserId).subscribe({
+      next: messages => {
+        console.log('Conversation chargée, nombre de messages:', messages.length);
+        console.log('Messages:', messages);
+        this.messagesSubject.next(messages);
+      },
+      error: error => {
+        console.error('Erreur lors du chargement de la conversation:', error);
+        this.messagesSubject.next([]);
+      }
     });
   }
 }

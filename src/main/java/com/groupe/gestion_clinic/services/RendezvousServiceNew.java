@@ -2,11 +2,15 @@ package com.groupe.gestion_clinic.services;
 
 import com.groupe.gestion_clinic.dto.MedecinDto;
 import com.groupe.gestion_clinic.dto.RendezvousDto;
+import com.groupe.gestion_clinic.dto.requestDto.RendezvousRequestDto;
+import com.groupe.gestion_clinic.exceptions.ConflictException;
+import com.groupe.gestion_clinic.exceptions.TooLateToCancelException;
 import com.groupe.gestion_clinic.model.*;
 import com.groupe.gestion_clinic.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,12 +25,80 @@ public class RendezvousServiceNew {
     private final com.groupe.gestion_clinic.notificationConfig.NotificationService notificationService;
 
     public RendezvousDto createRendezVous(Object requestDto) {
-        // Simplified implementation
+        // Gérer les données du frontend (Map ou DTO)
+        Integer medecinId, patientId;
+        LocalDateTime dateHeure;
+        String motif, salle;
+        
+        if (requestDto instanceof java.util.Map) {
+            java.util.Map<String, Object> map = (java.util.Map<String, Object>) requestDto;
+            // Gestion sécurisée des types
+            Object medecinIdObj = map.get("medecinId");
+            Object patientIdObj = map.get("patientId");
+            
+            medecinId = medecinIdObj instanceof String ? Integer.parseInt((String) medecinIdObj) : (Integer) medecinIdObj;
+            patientId = patientIdObj instanceof String ? Integer.parseInt((String) patientIdObj) : (Integer) patientIdObj;
+            dateHeure = LocalDateTime.parse((String) map.get("dateHeureDebut"));
+            motif = (String) map.get("motif");
+            salle = (String) map.get("salle");
+        } else {
+            RendezvousRequestDto request = (RendezvousRequestDto) requestDto;
+            medecinId = request.getMedecinId();
+            patientId = request.getPatientId();
+            dateHeure = request.getDateHeureDebut();
+            motif = request.getMotif();
+            salle = request.getSalle();
+        }
+        
+        // Validation des conflits
+        try {
+            validateRendezVousConflicts(medecinId, patientId, dateHeure, null);
+        } catch (ConflictException e) {
+            // Notifier le médecin concerné
+            if (medecinId != null) {
+                com.groupe.gestion_clinic.dto.NotificationDto conflictNotif = new com.groupe.gestion_clinic.dto.NotificationDto(
+                    "CONFLICT_DETECTED",
+                    "⚠️ Conflit de rendez-vous: " + e.getMessage(),
+                    null,
+                    LocalDateTime.now(),
+                    "MEDECIN",
+                    medecinId.longValue()
+                );
+                notificationService.sendPrivateNotification(medecinId.longValue(), conflictNotif);
+            }
+            
+            // Notifier toutes les secrétaires
+            com.groupe.gestion_clinic.dto.NotificationDto globalNotif = new com.groupe.gestion_clinic.dto.NotificationDto(
+                "CONFLICT_DETECTED",
+                "⚠️ Tentative de création échouée: " + e.getMessage(),
+                null,
+                LocalDateTime.now(),
+                "SECRETAIRE",
+                null
+            );
+            notificationService.sendPublicNotification(globalNotif);
+            
+            throw e;
+        }
+        
         Rendezvous rendezvous = new Rendezvous();
         rendezvous.setStatut(StatutRendezVous.PLANIFIE);
-        rendezvous.setDateHeureDebut(LocalDateTime.now().plusDays(1));
-        rendezvous.setMotif("Consultation");
-        rendezvous.setSalle("Salle 101");
+        rendezvous.setDateHeureDebut(dateHeure);
+        rendezvous.setMotif(motif);
+        rendezvous.setSalle(salle);
+        
+        // Associer patient et médecin
+        if (patientId != null) {
+            Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new RuntimeException("Patient non trouvé"));
+            rendezvous.setPatient(patient);
+        }
+        
+        if (medecinId != null) {
+            Medecin medecin = medecinRepository.findById(medecinId)
+                .orElseThrow(() -> new RuntimeException("Médecin non trouvé"));
+            rendezvous.setMedecin(medecin);
+        }
         
         Rendezvous saved = rendezvousRepository.save(rendezvous);
         
@@ -47,8 +119,40 @@ public class RendezvousServiceNew {
     }
 
     public RendezvousDto updateRendezVous(Integer id, Object requestDto) {
+        // Gérer les données du frontend
+        Integer medecinId, patientId;
+        LocalDateTime dateHeure;
+        String motif, salle;
+        
+        if (requestDto instanceof java.util.Map) {
+            java.util.Map<String, Object> map = (java.util.Map<String, Object>) requestDto;
+            // Gestion sécurisée des types
+            Object medecinIdObj = map.get("medecinId");
+            Object patientIdObj = map.get("patientId");
+            
+            medecinId = medecinIdObj instanceof String ? Integer.parseInt((String) medecinIdObj) : (Integer) medecinIdObj;
+            patientId = patientIdObj instanceof String ? Integer.parseInt((String) patientIdObj) : (Integer) patientIdObj;
+            dateHeure = LocalDateTime.parse((String) map.get("dateHeureDebut"));
+            motif = (String) map.get("motif");
+            salle = (String) map.get("salle");
+        } else {
+            RendezvousRequestDto request = (RendezvousRequestDto) requestDto;
+            medecinId = request.getMedecinId();
+            patientId = request.getPatientId();
+            dateHeure = request.getDateHeureDebut();
+            motif = request.getMotif();
+            salle = request.getSalle();
+        }
+        
         Rendezvous rendezvous = rendezvousRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Rendez-vous non trouvé"));
+        
+        // Validation des conflits (exclure le RDV actuel)
+        validateRendezVousConflicts(medecinId, patientId, dateHeure, id);
+        
+        rendezvous.setDateHeureDebut(dateHeure);
+        rendezvous.setMotif(motif);
+        rendezvous.setSalle(salle);
         
         Rendezvous updated = rendezvousRepository.save(rendezvous);
         return convertToDto(updated);
@@ -100,9 +204,14 @@ public class RendezvousServiceNew {
     }
 
     public List<RendezvousDto> getAllRendezVous() {
-        return rendezvousRepository.findAll().stream()
+        return rendezvousRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    public org.springframework.data.domain.Page<RendezvousDto> getAllRendezVousPaginated(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return rendezvousRepository.findAllByOrderByCreatedAtDesc(pageable).map(this::convertToDto);
     }
 
     public RendezvousDto getRendezVousById(Integer id) {
@@ -114,6 +223,11 @@ public class RendezvousServiceNew {
     public Void cancelRendezVous(Integer id) {
         Rendezvous rendezvous = rendezvousRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Rendez-vous non trouvé"));
+        
+        // Vérifier délai d'annulation (24h)
+        if (rendezvous.getDateHeureDebut() != null && rendezvous.getDateHeureDebut().isBefore(LocalDateTime.now().plusHours(24))) {
+            throw new TooLateToCancelException("Impossible d'annuler un rendez-vous moins de 24h avant");
+        }
         
         rendezvous.setStatut(StatutRendezVous.ANNULE);
         rendezvous.setDateAnnulation(LocalDateTime.now());
@@ -127,14 +241,14 @@ public class RendezvousServiceNew {
 
     public List<RendezvousDto> getUpcomingRendezVousForMedecin() {
         return rendezvousRepository.findAll().stream()
-                .filter(rdv -> rdv.getDateHeureDebut().isAfter(LocalDateTime.now()))
+                .filter(rdv -> rdv.getDateHeureDebut() != null && rdv.getDateHeureDebut().isAfter(LocalDateTime.now()))
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
 
     public List<RendezvousDto> getRendezVousBetweenDates(LocalDateTime start, LocalDateTime end, Integer medecinId) {
         return rendezvousRepository.findAll().stream()
-                .filter(rdv -> rdv.getDateHeureDebut().isAfter(start) && rdv.getDateHeureDebut().isBefore(end))
+                .filter(rdv -> rdv.getDateHeureDebut() != null && rdv.getDateHeureDebut().isAfter(start) && rdv.getDateHeureDebut().isBefore(end))
                 .filter(rdv -> medecinId == null || (rdv.getMedecin() != null && rdv.getMedecin().getId().equals(medecinId)))
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
@@ -162,5 +276,36 @@ public class RendezvousServiceNew {
         }
         
         return dto;
+    }
+    
+    private void validateRendezVousConflicts(Integer medecinId, Integer patientId, 
+                                           LocalDateTime dateHeure, Integer excludeId) {
+        // Vérifier conflit médecin (même heure)
+        if (medecinId != null) {
+            List<Rendezvous> medecinRdv = rendezvousRepository.findAll().stream()
+                .filter(rdv -> rdv.getMedecin() != null && rdv.getMedecin().getId().equals(medecinId))
+                .filter(rdv -> rdv.getStatut() != StatutRendezVous.ANNULE)
+                .filter(rdv -> excludeId == null || !rdv.getId().equals(excludeId))
+                .filter(rdv -> rdv.getDateHeureDebut() != null && rdv.getDateHeureDebut().equals(dateHeure))
+                .collect(Collectors.toList());
+                
+            if (!medecinRdv.isEmpty()) {
+                throw new ConflictException("Le médecin a déjà un rendez-vous à cette heure");
+            }
+        }
+        
+        // Vérifier conflit patient (même heure exacte au lieu du même jour)
+        if (patientId != null) {
+            List<Rendezvous> patientRdv = rendezvousRepository.findAll().stream()
+                .filter(rdv -> rdv.getPatient() != null && rdv.getPatient().getId().equals(patientId))
+                .filter(rdv -> rdv.getStatut() != StatutRendezVous.ANNULE)
+                .filter(rdv -> excludeId == null || !rdv.getId().equals(excludeId))
+                .filter(rdv -> rdv.getDateHeureDebut() != null && rdv.getDateHeureDebut().equals(dateHeure))
+                .collect(Collectors.toList());
+                
+            if (!patientRdv.isEmpty()) {
+                throw new ConflictException("Le patient a déjà un rendez-vous à cette heure exacte");
+            }
+        }
     }
 }
